@@ -1,1 +1,876 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Loop Abroad — Leads Tracker</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
+<script src="https://cdn.tailwindcss.com"></script>
+<style>* { box-sizing: border-box; } body { margin:0; font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif; background:#f5f5f5; } input:focus,select:focus,textarea:focus { border-color:#6366f1!important; outline:none; }</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
 
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbxBGETsbOe7hC63-5GkacW8nRdaugyJ6R9chJPfWc0QM9QwR6SyPHQBYE-C7Q-MKR9UGA/exec";
+const NEW_LEADS_GID   = "1240221106";
+const CONTACTS_GID    = "1904560885";
+const PASSWORDS = { admin:"PurplePokie93!", team:"LeadsonLeads" };
+const WEBHOOKS = {
+  Haley:  "https://chat.googleapis.com/v1/spaces/AAQAsbQCUtA/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=n3nJPmW_fOdtnjBBsW-m1kKld3i3tuyyVz_suKRfw84",
+  Sam:    "", // pending — Sam needs to create a Google Chat Space and share the webhook URL
+  Chiara: "https://chat.googleapis.com/v1/spaces/AAQABN5y1Hk/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=AX9zPju0bDXyMERbsg0WFs3nOqaJ-kSXtqfhO37vcBI",
+  Eliana: "https://chat.googleapis.com/v1/spaces/AAQAP0-gLlM/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=m3H_aZAbchUm5bnCipKU2MHyzvn2kER5kv5bVAjJo3I",
+};
+const TEAM          = ["Haley","Sam","Chiara","Eliana"];
+const STAGES        = ["New","Contacted","Talking","Ready","Other"];
+const SCHOOL_TYPES  = ["High School","College","Vet Tech","Vet School"];
+const CONTACT_IS    = ["Parent","Student"];
+const CONTACT_IS_CONTACTS = ["Parent","Student","Current Vet","Other"];
+const SOURCES       = ["Phone Call","Club Meeting","Email","Go Abroad","Instagram","Message Us","Other","Scheduled Meeting","Social Media","Text","WorldStrides"];
+const AREAS         = ["Big Cats","Conservation","Large Animal","Marine","Research","Shelter Med","Wildlife","Zoo","Vet Tech"];
+const PROGRAMS      = ["Australia","Bali","Belize","Costa Rica","Egypt","GVSA","Internship","Online","Panama","South Africa","Thailand","TVSA","Tulum","USA","UK Liverpool"];
+const LENGTHS       = ["2 Weeks","4 Weeks","6 Weeks","12 Weeks"];
+const TRAVELS       = ["Summer","Winter","Fall","Spring"];
+const CONTACT_TYPES = ["Online","Special Program","Future Enrollment","Group Organizer","Other"]; // Other added
+const HOW_OPTIONS   = ["Email","Call","Text","Other"];
+const ARCHIVE_REASONS = ["Converted","No reply","Not interested","Other"];
+
+// Source is used as-is for the initial contact log entry label
+
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
+function addBusinessDays(date,days){let d=new Date(date);let added=0;while(added<days){d.setDate(d.getDate()+1);const dow=d.getDay();if(dow!==0&&dow!==6)added++;}return d;}
+function todayDate(){const d=new Date();return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
+function parseDate(val){
+  if(val===null||val===undefined||val==="")return new Date();
+  // Handle Date objects (e.g. from Apps Script JSON)
+  if(val instanceof Date)return new Date(val.getFullYear(),val.getMonth(),val.getDate());
+  const str=String(val).trim();
+  if(!str)return new Date();
+  // M/D/YY or M/D/YYYY
+  const slash=str.split(" ")[0].split("/");
+  if(slash.length===3){let[m,d,y]=slash;if(y.length===2)y="20"+y;return new Date(+y,+m-1,+d);}
+  // YYYY-MM-DD (ISO, parse in local time to avoid off-by-one day)
+  const iso=str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(iso)return new Date(+iso[1],+iso[2]-1,+iso[3]);
+  const ts=Date.parse(str);return isNaN(ts)?new Date():new Date(ts);
+}
+function formatDate(dateObj){if(!dateObj)return"";const d=new Date(dateObj);return`${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
+function formatDateLong(str){if(!str)return"";const d=parseDate(str);return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
+function safeDate(val){if(val===null||val===undefined||val==="")return"";return formatDate(parseDate(val));}
+function defaultFollowUp(fromStr){const base=fromStr?parseDate(fromStr):new Date();return formatDate(addBusinessDays(base,3));}
+function generateId(){return"id_"+Date.now()+"_"+Math.random().toString(36).slice(2,7);}
+function getInitials(name){return(name||"?").split(" ").map(w=>w[0]).join("").toUpperCase().slice(0,2);}
+function isOverdue(fu){if(!fu)return false;const d=parseDate(fu),t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);return d<t;}
+function isDueToday(fu){if(!fu)return false;const d=parseDate(fu),t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);return d.getTime()===t.getTime();}
+function isDueThisWeek(fu){if(!fu)return false;const d=parseDate(fu),t=new Date(),w=new Date(t);t.setHours(0,0,0,0);w.setDate(w.getDate()+7);d.setHours(0,0,0,0);return d>t&&d<=w;}
+function daysLate(fu){const d=parseDate(fu),t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);return Math.round((t-d)/86400000);}
+// A lead is "future/snoozed" if followUp is more than 14 days away
+function isFuture(lead){if(!lead.followUp)return false;const d=parseDate(lead.followUp),t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);return(d-t)/86400000>14;}
+function needsReplyFlag(lead){if(!lead.contactLog||lead.contactLog.length===0)return false;const last=lead.contactLog[lead.contactLog.length-1];if(last.replied==="Yes")return false;const sent=parseDate(last.date),today=new Date();today.setHours(0,0,0,0);sent.setHours(0,0,0,0);return(today-sent)/86400000>=2;}
+function parseLog(raw){if(!raw)return[];if(Array.isArray(raw))return raw;try{return JSON.parse(raw);}catch{return[];}}
+async function callScript(method,payload){try{if(method==="GET"){const r=await fetch(`${APPS_SCRIPT_URL}?${new URLSearchParams(payload)}`);return await r.json();}await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});return{success:true};}catch(e){console.error(e);return{error:e.message};}}
+async function saveLead(lead){await callScript("POST",{action:"upsert",lead});}
+async function sendNotification(person,text){const url=WEBHOOKS[person];if(!url)return;await callScript("POST",{action:"notify",webhookUrl:url,text});}
+
+// Normalize sheet row keys to match tracker field names regardless of capitalization/spacing
+const FIELD_MAP={
+  "date added":"Date Added","name":"Name","email":"Email","phone":"Phone",
+  "source":"Source","contact history":"Contact History",
+  "school name":"School Name","school type":"School Type",
+  "contact is a":"Contact is a","contact is":"Contact is a",
+  "area of interest":"Area of Interest","areas of interest":"Area of Interest",
+  "programs interested in":"Programs Interested In","program interested in":"Programs Interested In",
+  "program length":"Program Length","time of travel":"Time of Travel",
+  "assigned to":"Assigned to","temperature":"temperature",
+  "snooze until":"followUp","next follow up":"followUp","next follow-up":"followUp",
+  // contacts sheet
+  "date":"Date","type":"Type","program":"Program","notes":"Notes",
+};
+function normalizeRow(row){
+  const out={};
+  Object.entries(row).forEach(([k,v])=>{
+    const norm=FIELD_MAP[k.toLowerCase().trim()];
+    out[norm||k]=v;
+  });
+  return out;
+}
+
+function exportCSV(data,filename){const headers=["Name","Email","Phone","Time of Travel","Area of Interest","Programs Interested In","Source","School Name","School Type","Contact is a","Program Length","Assigned to","Stage","Temperature","Date Added"];const rows=data.map(l=>headers.map(h=>`"${String(l[h]||"").replace(/"/g,'""')}"`).join(","));const counts={};data.forEach(l=>{const s=l["Source"]||"Unknown";counts[s]=(counts[s]||0)+1;});rows.push("","Source Report");Object.entries(counts).forEach(([s,c])=>rows.push(`"${s}","${c}"`));const blob=new Blob([[headers.join(","),...rows].join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();}
+function exportContactsCSV(data){const headers=["Name","Email","Phone","Type","Program","Contact is a","Notes","Date"];const rows=data.map(c=>headers.map(h=>`"${String(c[h]||"").replace(/"/g,'""')}"`).join(","));const blob=new Blob([[headers.join(","),...rows].join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="contacts.csv";a.click();}
+
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
+function MultiSelect({options,value,onChange}){const selected=(value||"").split(",").map(s=>s.trim()).filter(Boolean);const toggle=opt=>{const n=selected.includes(opt)?selected.filter(s=>s!==opt):[...selected,opt];onChange(n.join(", "));};return <div className="flex flex-wrap gap-1">{options.map(opt=><button key={opt} type="button" onClick={()=>toggle(opt)} className={`text-xs px-2 py-1 rounded-full border transition-colors ${selected.includes(opt)?"bg-indigo-100 border-indigo-400 text-indigo-700 font-medium":"bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}>{opt}</button>)}</div>;}
+
+function Tag({label,color}){const C={blue:"bg-blue-50 text-blue-600 border-blue-200",yellow:"bg-yellow-50 text-yellow-700 border-yellow-200",gray:"bg-gray-100 text-gray-500 border-gray-200",green:"bg-green-50 text-green-600 border-green-200",red:"bg-red-50 text-red-600 border-red-200",purple:"bg-purple-50 text-purple-600 border-purple-200",orange:"bg-orange-50 text-orange-700 border-orange-200"};return <span className={`text-xs px-2 py-0.5 rounded-full border ${C[color]||C.gray}`}>{label}</span>;}
+
+// Temperature badge: Hot = green filled, Cold = blue outline
+function TempBadge({temp}){
+  if(!temp) return null;
+  if(temp==="Hot") return <span className="text-xs px-2 py-0.5 rounded-full bg-green-500 text-white font-medium">🔥 Hot</span>;
+  if(temp==="Cold") return <span className="text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-600 border border-blue-300 font-medium">❄ Cold</span>;
+  return null;
+}
+
+// Temperature selector buttons (Hot / — / Cold)
+function TempSelector({value,onChange}){
+  return (
+    <div className="flex gap-1">
+      <button type="button" onClick={()=>onChange(value==="Hot"?"":
+"Hot")}
+        className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${value==="Hot"?"bg-green-500 text-white border-green-500":"bg-white border-gray-200 text-gray-500 hover:border-green-300"}`}>🔥 Hot</button>
+      <button type="button" onClick={()=>onChange("")}
+        className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${!value?"bg-gray-100 text-gray-600 border-gray-300":"bg-white border-gray-200 text-gray-400 hover:border-gray-300"}`}>—</button>
+      <button type="button" onClick={()=>onChange(value==="Cold"?"":"Cold")}
+        className={`text-xs px-3 py-1.5 rounded-lg border font-medium transition-colors ${value==="Cold"?"bg-blue-100 text-blue-600 border-blue-300":"bg-white border-gray-200 text-gray-500 hover:border-blue-300"}`}>❄ Cold</button>
+    </div>
+  );
+}
+
+function typeColor(t){return{Online:"blue","Special Program":"yellow","Future Enrollment":"gray","Group Organizer":"purple",Other:"gray"}[t]||"gray";}
+function stageColor(s){return{New:"gray",Contacted:"orange",Talking:"blue",Ready:"green",Other:"purple"}[s]||"gray";}
+
+function ContactDots({count}){return <div className="flex items-center gap-1">{[1,2,3,4,5].map(i=><div key={i} className={`w-2 h-2 rounded-full ${i<=count?"bg-gray-500":"bg-gray-200"}`}/>)}<span className="text-xs text-gray-400 ml-1">{count}/5</span></div>;}
+
+// ─── LEAD FORM ────────────────────────────────────────────────────────────────
+function LeadForm({initial,onSave,onCancel,title}){
+  const blank={"Date Added":todayDate(),Name:"",Email:"",Phone:"",Source:"","Contact History":"","School Name":"","School Type":"","Contact is a":"","Area of Interest":"","Programs Interested In":"","Program Length":"","Time of Travel":"","Assigned to":"",temperature:""};
+  const [form,setForm]=React.useState(initial||blank);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-6">
+        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Lead"}</h2><button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="text-xs text-gray-500 mb-1 block">Date Added</label><input value={form["Date Added"]} onChange={e=>set("Date Added",e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Assigned to *</label><select value={form["Assigned to"]} onChange={e=>set("Assigned to",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form["Name"]} onChange={e=>set("Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><input value={form["Email"]} onChange={e=>set("Email",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Phone</label><input value={form["Phone"]} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Source</label><select value={form["Source"]} onChange={e=>set("Source",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">School Name</label><input value={form["School Name"]} onChange={e=>set("School Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">School Type</label><select value={form["School Type"]} onChange={e=>set("School Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{SCHOOL_TYPES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_IS.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Lead Temperature</label><TempSelector value={form.temperature||""} onChange={v=>set("temperature",v)}/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Area of Interest</label><MultiSelect options={AREAS} value={form["Area of Interest"]} onChange={v=>set("Area of Interest",v)}/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Programs Interested In</label><MultiSelect options={PROGRAMS} value={form["Programs Interested In"]} onChange={v=>set("Programs Interested In",v)}/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Program Length</label><MultiSelect options={LENGTHS} value={form["Program Length"]} onChange={v=>set("Program Length",v)}/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Time of Travel</label><MultiSelect options={TRAVELS} value={form["Time of Travel"]} onChange={v=>set("Time of Travel",v)}/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Contact History / Initial Notes</label><textarea value={form["Contact History"]} onChange={e=>set("Contact History",e.target.value)} placeholder="What was said in the initial contact…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+          <button onClick={()=>{if(!form["Name"].trim()){alert("Name required.");return;}if(!form["Assigned to"]){alert("Assigned to required.");return;}onSave(form);}} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save Lead</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── CONTACT FORM ─────────────────────────────────────────────────────────────
+function ContactForm({initial,onSave,onCancel,title}){
+  const blank={Name:"",Date:todayDate(),Email:"",Phone:"","Contact is a":"",Type:"",Program:"",Notes:""};
+  const [form,setForm]=React.useState(initial||blank);
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Contact"}</h2><button onClick={onCancel} className="text-gray-400 text-xl">✕</button></div>
+        <div className="grid grid-cols-2 gap-4">
+          <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form.Name} onChange={e=>set("Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Date</label><input value={form.Date} onChange={e=>set("Date",e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Email</label><input value={form.Email} onChange={e=>set("Email",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Phone</label><input value={form.Phone} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Type *</label><select value={form.Type} onChange={e=>set("Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Program</label><input value={form.Program} onChange={e=>set("Program",e.target.value)} placeholder="e.g. Online — Thailand" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Notes</label><textarea value={form.Notes} onChange={e=>set("Notes",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
+        </div>
+        <div className="flex justify-end gap-3 mt-6">
+          <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+          <button onClick={()=>{if(!form.Name.trim()){alert("Name required.");return;}if(!form.Type){alert("Type required.");return;}onSave(form);}} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save Contact</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ADD REPLY ─────────────────────────────────────────────────────────────────
+function AddReplyInline({onSave,onCancel}){const [content,setContent]=React.useState("");const [date,setDate]=React.useState(todayDate());return(<div className="bg-green-50 border border-green-100 rounded p-2 space-y-1.5 mt-1"><input value={date} onChange={e=>setDate(e.target.value)} placeholder="Reply date M/D/YY" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white"/><textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Their reply…" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white resize-none h-12"/><div className="flex gap-2"><button onClick={()=>onSave(content,date)} className="text-xs px-3 py-1 bg-green-600 text-white rounded">Save</button><button onClick={onCancel} className="text-xs text-gray-500">Cancel</button></div></div>);}
+
+// ─── LEAD PROFILE ─────────────────────────────────────────────────────────────
+function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts}){
+  const [l,setL]=React.useState({...lead});
+  const [logForm,setLogForm]=React.useState({date:todayDate(),who:"",how:"",notes:"",replied:"No",replyContent:"",replyDate:""});
+  const [followUp,setFollowUp]=React.useState(lead.followUp||defaultFollowUp(lead["Date Added"]));
+  const logDateMounted=React.useRef(false);
+  const [addingReply,setAddingReply]=React.useState(null);
+  const [editingEntryId,setEditingEntryId]=React.useState(null);
+  const [editingNotes,setEditingNotes]=React.useState("");
+  const [showArchiveModal,setShowArchiveModal]=React.useState(false);
+  const [archiveReason,setArchiveReason]=React.useState("");
+  const [showMoveContacts,setShowMoveContacts]=React.useState(false);
+  const [contactType,setContactType]=React.useState("");
+
+  React.useEffect(()=>{if(!logDateMounted.current){logDateMounted.current=true;return;}setFollowUp(defaultFollowUp(logForm.date));},[logForm.date]);
+
+  const set=(k,v)=>setL(prev=>({...prev,[k]:v}));
+
+  const saveAll=async(updates)=>{
+    const updated={...l,...updates,followUp};
+    setL(updated);onUpdate(updated);
+    await saveLead({...updated,contactLog:JSON.stringify(updated.contactLog||[])});
+  };
+
+  const logContact=async()=>{
+    if(!logForm.who){alert("Select who made the contact.");return;}
+    if(!logForm.how){alert("Select how contact was made.");return;}
+    const entry={...logForm,id:Date.now()};
+    const log=[...(l.contactLog||[]),entry];
+    let newStage=l.Stage||"New";
+    if(newStage==="New")newStage="Contacted";
+    const noReplies=log.filter(e=>e.replied==="No"||e.replied==="Not sure yet").length;
+    if(noReplies>=5){
+      const archived={...l,Stage:newStage,contactLog:log,followUp,archived:true,archiveReason:"No reply",archiveDate:todayDate()};
+      onArchive(archived);await saveLead({...archived,contactLog:JSON.stringify(log)});onClose();return;
+    }
+    const updated={...l,Stage:newStage,contactLog:log,followUp};
+    setL(updated);onUpdate(updated);
+    await saveLead({...updated,contactLog:JSON.stringify(log)});
+    setLogForm({date:todayDate(),who:"",how:"",notes:"",replied:"No",replyContent:"",replyDate:""});
+  };
+
+  const addReply=async(entryId,replyContent,replyDate)=>{
+    const log=(l.contactLog||[]).map(e=>e.id===entryId?{...e,replied:"Yes",replyContent,replyDate}:e);
+    await saveAll({contactLog:log});setAddingReply(null);
+  };
+
+  const saveEditedNotes=async(entryId)=>{
+    const log=(l.contactLog||[]).map(e=>e.id===entryId?{...e,notes:editingNotes}:e);
+    await saveAll({contactLog:log});setEditingEntryId(null);
+  };
+
+  const contactCount=(l.contactLog||[]).length;
+  const needsReply=needsReplyFlag(l);
+  const getHowIcon=how=>({"Email":"✉","Call":"☎","Text":"💬"}[how]||how?.slice(0,2)||"•");
+
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-start justify-center z-50 p-4 overflow-y-auto">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl my-8 relative">
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-gray-100">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">{getInitials(l["Name"])}</div>
+            <div>
+              <div className="text-lg font-semibold text-gray-900 flex items-center gap-2">{l["Name"]}<TempBadge temp={l.temperature}/></div>
+              <div className="text-sm text-gray-500">{l["Email"]}{l["Phone"]?` · ${l["Phone"]}`:""}</div>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            {needsReply&&<Tag label="Reply?" color="orange"/>}
+            {isFuture(l)&&<Tag label={`Follow-up ${safeDate(l.followUp)}`} color="blue"/>}
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl ml-2">✕</button>
+          </div>
+        </div>
+
+        <div className="p-6 grid grid-cols-2 gap-6">
+          {/* LEFT */}
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div><label className="text-xs text-gray-400 block mb-1">Stage</label>
+                <select value={l["Stage"]||"New"} onChange={e=>set("Stage",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
+                  {STAGES.map(s=><option key={s}>{s}</option>)}
+                </select>
+              </div>
+              <div><label className="text-xs text-gray-400 block mb-1">Assigned to</label>
+                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
+                  <option value="">—</option>{TEAM.map(t=><option key={t}>{t}</option>)}
+                </select>
+              </div>
+            </div>
+
+            {/* Temperature */}
+            <div><label className="text-xs text-gray-400 block mb-2">Temperature</label><TempSelector value={l.temperature||""} onChange={v=>set("temperature",v)}/></div>
+
+            {[["Source","Source",SOURCES,"select"],["School Name","School Name",null,"text"],["School Type","School Type",SCHOOL_TYPES,"select"],["Contact is a","Contact is a",CONTACT_IS,"select"]].map(([label,key,opts,type])=>(
+              <div key={key}><label className="text-xs text-gray-400 block mb-1">{label}</label>
+                {type==="select"
+                  ?<select value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">—</option>{opts.map(o=><option key={o}>{o}</option>)}</select>
+                  :<input value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>}
+              </div>
+            ))}
+            <div><label className="text-xs text-gray-400 block mb-2">Area of Interest</label><MultiSelect options={AREAS} value={l["Area of Interest"]||""} onChange={v=>set("Area of Interest",v)}/></div>
+            <div><label className="text-xs text-gray-400 block mb-2">Programs Interested In</label><MultiSelect options={PROGRAMS} value={l["Programs Interested In"]||""} onChange={v=>set("Programs Interested In",v)}/></div>
+            <div><label className="text-xs text-gray-400 block mb-2">Program Length</label><MultiSelect options={LENGTHS} value={l["Program Length"]||""} onChange={v=>set("Program Length",v)}/></div>
+            <div><label className="text-xs text-gray-400 block mb-2">Time of Travel</label><MultiSelect options={TRAVELS} value={l["Time of Travel"]||""} onChange={v=>set("Time of Travel",v)}/></div>
+            <div>
+              <label className="text-xs text-gray-400 block mb-1">Next Follow-up <span className="text-gray-300 font-normal">(also your snooze — set far out to pause)</span></label>
+              <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>
+              <div className="text-xs text-gray-300 mt-1">E.g. set 8/1/26 to pause until August</div>
+            </div>
+
+            <button onClick={()=>saveAll({})} className="w-full py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save Changes</button>
+            <div className="flex gap-2">
+              <button onClick={()=>setShowMoveContacts(true)} className="flex-1 py-1.5 text-xs border border-gray-200 rounded-lg text-gray-500 hover:text-gray-700">Move to Contacts</button>
+              <button onClick={()=>setShowArchiveModal(true)} className="flex-1 py-1.5 text-xs border border-red-100 rounded-lg text-red-400 hover:text-red-600">Archive</button>
+            </div>
+          </div>
+
+          {/* RIGHT — contact log */}
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div className="text-sm font-medium text-gray-700">Contact Log</div>
+              <ContactDots count={contactCount}/>
+            </div>
+            <div className="space-y-2 mb-4 max-h-72 overflow-y-auto pr-1">
+              {contactCount===0&&<div className="text-xs text-gray-400 text-center py-4">No contacts logged yet.</div>}
+              {(l.contactLog||[]).map((entry,i)=>(
+                <div key={entry.id||i} className="flex gap-2">
+                  <div className="flex flex-col items-center">
+                    <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${entry.replied==="Yes"?"bg-green-100 text-green-700":"bg-gray-100 text-gray-500"}`}>{getHowIcon(entry.how)}</div>
+                    {i<contactCount-1&&<div className="w-px flex-1 bg-gray-100 mt-1 min-h-[12px]"/>}
+                  </div>
+                  <div className="flex-1 pb-2">
+                    <div className="flex justify-between items-start mb-0.5">
+                      <span className="text-xs font-medium text-gray-700">{entry.how} — {entry.who}</span>
+                      <span className="text-xs text-gray-400">{formatDateLong(entry.date)}</span>
+                    </div>
+                    {editingEntryId===entry.id
+                      ?<div className="space-y-1"><textarea value={editingNotes} onChange={e=>setEditingNotes(e.target.value)} className="w-full border border-gray-200 rounded px-2 py-1 text-xs resize-none h-14"/><div className="flex gap-2"><button onClick={()=>saveEditedNotes(entry.id)} className="text-xs px-2 py-0.5 bg-indigo-600 text-white rounded">Save</button><button onClick={()=>setEditingEntryId(null)} className="text-xs text-gray-400">Cancel</button></div></div>
+                      :<div className="text-xs text-gray-500 mb-1 cursor-pointer hover:text-gray-700" onClick={()=>{setEditingEntryId(entry.id);setEditingNotes(entry.notes||"");}}>{entry.notes||<span className="italic text-gray-300">No notes — click to edit</span>}</div>
+                    }
+                    {entry.replied==="Yes"
+                      ?<div className="text-xs bg-green-50 border border-green-100 rounded px-2 py-1"><span className="text-green-600 font-medium">Replied {formatDateLong(entry.replyDate)}</span>{entry.replyContent&&<div className="text-gray-500 mt-0.5">{entry.replyContent}</div>}</div>
+                      :addingReply===entry.id
+                        ?<AddReplyInline onSave={(c,d)=>addReply(entry.id,c,d)} onCancel={()=>setAddingReply(null)}/>
+                        :<button onClick={()=>setAddingReply(entry.id)} className="text-xs text-indigo-500 hover:text-indigo-700 underline">Add reply</button>
+                    }
+                  </div>
+                </div>
+              ))}
+            </div>
+            {/* Log new contact */}
+            <div className="bg-gray-50 rounded-xl p-3 space-y-2">
+              <div className="text-xs font-medium text-gray-600">Log a contact</div>
+              <div className="grid grid-cols-2 gap-2">
+                <div><label className="text-xs text-gray-400 block mb-1">Date</label><input value={logForm.date} onChange={e=>setLogForm(f=>({...f,date:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/></div>
+                <div><label className="text-xs text-gray-400 block mb-1">Who</label><select value={logForm.who} onChange={e=>setLogForm(f=>({...f,who:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"><option value="">Select…</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
+              </div>
+              <div><label className="text-xs text-gray-400 block mb-1">How</label>
+                <div className="flex gap-1 flex-wrap">{HOW_OPTIONS.map(h=><button key={h} type="button" onClick={()=>setLogForm(f=>({...f,how:h}))} className={`text-xs px-2 py-1 rounded border ${logForm.how===h?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{h}</button>)}</div>
+              </div>
+              <div><label className="text-xs text-gray-400 block mb-1">Notes</label><textarea value={logForm.notes} onChange={e=>setLogForm(f=>({...f,notes:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs resize-none h-14"/></div>
+              <div><label className="text-xs text-gray-400 block mb-1">Did they reply?</label>
+                <div className="flex gap-1">{["Yes","No","Not sure yet"].map(r=><button key={r} type="button" onClick={()=>setLogForm(f=>({...f,replied:r}))} className={`flex-1 text-xs py-1.5 rounded border ${logForm.replied===r?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{r}</button>)}</div>
+              </div>
+              {logForm.replied==="Yes"&&(
+                <div className="space-y-1">
+                  <input value={logForm.replyDate} onChange={e=>setLogForm(f=>({...f,replyDate:e.target.value}))} placeholder="Reply date M/D/YY" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/>
+                  <textarea value={logForm.replyContent} onChange={e=>setLogForm(f=>({...f,replyContent:e.target.value}))} placeholder="Their reply…" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs resize-none h-12"/>
+                </div>
+              )}
+              <div><label className="text-xs text-gray-400 block mb-1">Next follow-up <span className="text-gray-300">(auto: 3 business days from date above)</span></label>
+                <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/>
+              </div>
+              <button onClick={logContact} className="w-full py-2 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save &amp; set follow-up</button>
+            </div>
+          </div>
+        </div>
+
+        {/* Archive modal */}
+        {showArchiveModal&&(
+          <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
+            <div className="text-base font-semibold text-gray-800">Archive this lead?</div>
+            <div className="text-sm text-gray-400 text-center">All information will be preserved.</div>
+            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reason…</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+            <div className="flex gap-3">
+              <button onClick={()=>setShowArchiveModal(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+              <button onClick={async()=>{if(!archiveReason){alert("Select a reason.");return;}const archived={...l,archived:true,archiveReason,archiveDate:todayDate(),followUp};onArchive(archived);await saveLead({...archived,contactLog:JSON.stringify(archived.contactLog||[])});onClose();}} className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg">Archive</button>
+            </div>
+          </div>
+        )}
+
+        {/* Move to Contacts modal */}
+        {showMoveContacts&&(
+          <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
+            <div className="text-base font-semibold text-gray-800">Move to Contacts</div>
+            <div className="text-sm text-gray-400 text-center max-w-xs">All lead information will be preserved. Select the contact type.</div>
+            <select value={contactType} onChange={e=>setContactType(e.target.value)} className="w-56 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select type…</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select>
+            <div className="flex gap-3">
+              <button onClick={()=>setShowMoveContacts(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+              <button onClick={()=>{if(!contactType){alert("Select a type.");return;}onMoveToContacts(l,contactType);onClose();}} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg">Move</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── CONTACT PROFILE ──────────────────────────────────────────────────────────
+function ContactProfile({contact,onClose,onUpdate,onMoveToLeads,onArchiveContact}){
+  const [c,setC]=React.useState({...contact});
+  const [showArchiveModal,setShowArchiveModal]=React.useState(false);
+  const [archiveReason,setArchiveReason]=React.useState("");
+  const set=(k,v)=>setC(prev=>({...prev,[k]:v}));
+  const save=async()=>{onUpdate(c);await saveLead(c);onClose();};
+  const displayDate=safeDate(c.Date||c["Date Added"]);
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6 relative">
+        <div className="flex justify-between items-center mb-5">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">{getInitials(c.Name)}</div>
+            <div><div className="font-semibold text-gray-800">{c.Name}</div><div className="text-xs text-gray-400">{c.Email}</div></div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
+        </div>
+        <div className="flex gap-2 mb-4"><Tag label={c.Type||"—"} color={typeColor(c.Type)}/><span className="text-xs text-gray-400 flex items-center">Added {displayDate}</span></div>
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3">
+            <div><label className="text-xs text-gray-400 block mb-1">Phone</label><input value={c.Phone||""} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/></div>
+            <div><label className="text-xs text-gray-400 block mb-1">Contact is a</label><select value={c["Contact is a"]||""} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">—</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
+            <div><label className="text-xs text-gray-400 block mb-1">Type</label><select value={c.Type||""} onChange={e=>set("Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
+            <div><label className="text-xs text-gray-400 block mb-1">Program</label><input value={c.Program||""} onChange={e=>set("Program",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/></div>
+          </div>
+          <div><label className="text-xs text-gray-400 block mb-1">Notes</label><textarea value={c.Notes||""} onChange={e=>set("Notes",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
+        </div>
+        <div className="flex justify-between items-center mt-5 gap-2">
+          <button onClick={()=>onMoveToLeads(c)} className="text-xs px-3 py-2 border border-indigo-200 rounded-lg text-indigo-500 hover:text-indigo-700">Move to active leads</button>
+          <button onClick={()=>setShowArchiveModal(true)} className="text-xs px-3 py-2 border border-red-100 rounded-lg text-red-400 hover:text-red-600">Archive</button>
+          <button onClick={save} className="px-4 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save</button>
+        </div>
+        {showArchiveModal&&(
+          <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
+            <div className="text-base font-semibold text-gray-800">Archive this contact?</div>
+            <div className="text-sm text-gray-400">All information will be preserved.</div>
+            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reason…</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+            <div className="flex gap-3">
+              <button onClick={()=>setShowArchiveModal(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
+              <button onClick={()=>{if(!archiveReason){alert("Select a reason.");return;}onArchiveContact(c,archiveReason);onClose();}} className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg">Archive</button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ─── ARCHIVED ITEM PROFILE ────────────────────────────────────────────────────
+function ArchivedItemProfile({item,onClose,onRestore}){
+  const isContact=item._table==="contacts";
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-md p-6">
+        <div className="flex justify-between items-center mb-4">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm">{getInitials(item.Name||item["Name"])}</div>
+            <div><div className="font-semibold text-gray-800">{item.Name||item["Name"]}</div><div className="text-xs text-gray-400">{item.Email||item["Email"]}</div></div>
+          </div>
+          <button onClick={onClose} className="text-gray-400 text-xl">✕</button>
+        </div>
+        <div className="flex gap-2 mb-4 flex-wrap">
+          <Tag label={item.archiveReason||"Archived"} color={item.archiveReason==="Converted"?"green":(item.archiveReason==="Not interested"?"red":"gray")}/>
+          <span className="text-xs text-gray-400 flex items-center">Archived {safeDate(item.archiveDate)}</span>
+          {!isContact&&item.Stage&&<Tag label={item.Stage} color={stageColor(item.Stage)}/>}
+          {!isContact&&item.temperature&&<TempBadge temp={item.temperature}/>}
+          {isContact&&item.Type&&<Tag label={item.Type} color={typeColor(item.Type)}/>}
+        </div>
+        <div className="text-xs text-gray-500 space-y-1 max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3 mb-4">
+          {["Email","Phone","Source","School Name","School Type","Contact is a","Area of Interest","Programs Interested In","Program Length","Time of Travel","Assigned to","Date Added","Date","Program","Notes"].map(k=>(item[k]?<div key={k}><span className="font-medium text-gray-600">{k}:</span> {item[k]}</div>:null))}
+        </div>
+        <div className="flex gap-2">
+          <button onClick={()=>onRestore(item,"leads")} className="flex-1 py-2 text-sm border border-indigo-200 rounded-lg text-indigo-600 hover:bg-indigo-50">Restore to leads</button>
+          {!isContact&&<button onClick={()=>onRestore(item,"contacts")} className="flex-1 py-2 text-sm border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">Restore to Contacts</button>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── ACTIONS TAB ──────────────────────────────────────────────────────────────
+function ActionsTab({leads,onSelectLead,onAddLead}){
+  const [person,setPerson]=React.useState("Everyone");
+  const filtered=person==="Everyone"?leads:leads.filter(l=>l["Assigned to"]===person);
+  const overdue=filtered.filter(l=>isOverdue(l.followUp));
+  const dueToday=filtered.filter(l=>isDueToday(l.followUp));
+  const thisWeek=filtered.filter(l=>isDueThisWeek(l.followUp));
+
+  const Card=({lead,urgency})=>{
+    const late=daysLate(lead.followUp);
+    const nr=needsReplyFlag(lead);
+    const count=(lead.contactLog||[]).length;
+    const borderCls=urgency==="overdue"?"border-red-300 border-l-red-400":urgency==="today"?"border-yellow-300 border-l-yellow-400":"border-gray-200 border-l-gray-300";
+    return(
+      <div onClick={()=>onSelectLead(lead)} className={`bg-white border border-l-4 ${borderCls} rounded-xl p-3 cursor-pointer hover:shadow-sm`}>
+        <div className="flex justify-between items-start mb-1.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="text-sm font-medium text-gray-800">{lead["Name"]}</span>
+            {lead.temperature&&<TempBadge temp={lead.temperature}/>}
+            {nr&&<Tag label="Reply?" color="orange"/>}
+          </div>
+          <div className="text-right flex-shrink-0 ml-2">
+            {urgency==="overdue"&&<div className="text-xs text-red-500">{late}d late</div>}
+            {urgency==="today"&&<div className="text-xs text-yellow-600">Due today</div>}
+            {urgency==="week"&&<div className="text-xs text-gray-400">{formatDateLong(lead.followUp)}</div>}
+          </div>
+        </div>
+        <div className="flex items-center justify-between">
+          <div className="text-xs text-gray-400">{lead["Programs Interested In"]||"—"} · {lead["School Type"]||"—"} · <span className="font-medium">{lead["Assigned to"]||"—"}</span></div>
+          <ContactDots count={count}/>
+        </div>
+      </div>
+    );
+  };
+
+  return(
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex gap-2 flex-wrap">
+          {["Everyone",...TEAM].map(p=><button key={p} onClick={()=>setPerson(p)} className={`text-xs px-3 py-1.5 rounded-full border ${person===p?"bg-gray-800 text-white border-gray-800":"bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}>{p}</button>)}
+        </div>
+        <button onClick={onAddLead} className="text-xs px-3 py-2 bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">+ Add Lead</button>
+      </div>
+      {overdue.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Overdue</div><div className="space-y-2">{overdue.map(l=><Card key={l.id} lead={l} urgency="overdue"/>)}</div></div>}
+      {dueToday.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-yellow-600 uppercase tracking-wider mb-2">Due Today</div><div className="space-y-2">{dueToday.map(l=><Card key={l.id} lead={l} urgency="today"/>)}</div></div>}
+      {thisWeek.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">This Week</div><div className="space-y-2">{thisWeek.map(l=><Card key={l.id} lead={l} urgency="week"/>)}</div></div>}
+      {overdue.length===0&&dueToday.length===0&&thisWeek.length===0&&<div className="text-center text-gray-400 text-sm py-12">Nothing due right now{person!=="Everyone"?` for ${person}`:""}. 🎉</div>}
+    </div>
+  );
+}
+
+// ─── CURRENT LEADS TAB ────────────────────────────────────────────────────────
+function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
+  const [search,setSearch]=React.useState("");
+  const [stageF,setStageF]=React.useState("All");
+  const [personF,setPersonF]=React.useState("Everyone");
+  const [tempF,setTempF]=React.useState("All");
+  const [showExport,setShowExport]=React.useState(false);
+  const filtered=leads.filter(l=>{
+    const q=search.toLowerCase();
+    return(!q||(l["Name"]||"").toLowerCase().includes(q)||(l["Email"]||"").toLowerCase().includes(q))
+      &&(stageF==="All"||l["Stage"]===stageF)
+      &&(personF==="Everyone"||l["Assigned to"]===personF)
+      &&(tempF==="All"||(tempF==="Hot"&&l.temperature==="Hot")||(tempF==="Cold"&&l.temperature==="Cold")||(tempF==="None"&&!l.temperature));
+  });
+  return(
+    <div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 min-w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <select value={stageF} onChange={e=>setStageF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
+        <select value={personF} onChange={e=>setPersonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>Everyone</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select>
+        <select value={tempF} onChange={e=>setTempF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="All">🌡 All</option><option value="Hot">🔥 Hot</option><option value="Cold">❄ Cold</option><option value="None">— None</option></select>
+      </div>
+      <div className="flex gap-2 mb-4">
+        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">⬇ Export</button>
+        <button onClick={onAddLead} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">+ Add Lead</button>
+        <button onClick={onUpload} disabled={uploading} className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-500 disabled:opacity-50">{uploading?"Uploading…":"Upload from sheet"}</button>
+      </div>
+      {showExport&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4"><div className="text-sm font-medium text-gray-700 mb-1">Export Current Leads</div><div className="text-xs text-gray-400 mb-3">All fields + source summary</div><button onClick={()=>exportCSV(filtered,"current-leads.csv")} className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 font-medium">Download CSV</button></div>}
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_100px_80px_70px_60px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Name</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Stage</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Assigned</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Added</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Contacts</div>
+        </div>
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-8">No leads found.</div>}
+        {filtered.map((l,i)=>(
+          <div key={l.id} onClick={()=>onSelectLead(l)} className={`grid grid-cols-[1fr_100px_80px_70px_60px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
+            <div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}{isFuture(l)&&<span className="text-xs text-blue-400" title={`Follow-up: ${l.followUp}`}>⏸</span>}</div>
+              <div className="text-xs text-gray-400">{l["Email"]}</div>
+            </div>
+            <div className="flex items-center"><Tag label={l["Stage"]||"New"} color={stageColor(l["Stage"])}/></div>
+            <div className="text-sm text-gray-500 flex items-center">{l["Assigned to"]||"—"}</div>
+            <div className="text-xs text-gray-400 flex items-center">{safeDate(l["Date Added"])}</div>
+            <div className="flex items-center"><ContactDots count={(l.contactLog||[]).length}/></div>
+          </div>
+        ))}
+      </div>
+      <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} lead{filtered.length!==1?"s":""}</div>
+    </div>
+  );
+}
+
+// ─── CONTACTS TAB ─────────────────────────────────────────────────────────────
+function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading}){
+  const [search,setSearch]=React.useState("");
+  const [typeF,setTypeF]=React.useState("All");
+  const [showExport,setShowExport]=React.useState(false);
+  const filtered=contacts.filter(c=>(!search||(c.Name||"").toLowerCase().includes(search.toLowerCase())||(c.Email||"").toLowerCase().includes(search.toLowerCase()))&&(typeF==="All"||c.Type===typeF));
+  return(
+    <div>
+      <div className="flex flex-wrap gap-2 mb-4 items-center">
+        <div className="text-base font-semibold text-gray-800 mr-2">Contacts</div>
+        <div className="flex-1"/>
+        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">⬇ Export</button>
+        <button onClick={onUpload} disabled={uploading} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 disabled:opacity-50">{uploading?"Uploading…":"Upload from sheet"}</button>
+        <button onClick={onAddContact} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">+ Add Contact</button>
+      </div>
+      {showExport&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4"><div className="text-sm font-medium text-gray-700 mb-1">Export Contacts</div><div className="text-xs text-gray-400 mb-3">Name, Email, Phone, Type, Program, Contact is a, Notes, Date</div><button onClick={()=>exportContactsCSV(filtered)} className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 font-medium">Download CSV</button></div>}
+      <div className="flex gap-2 mb-4">
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <select value={typeF} onChange={e=>setTypeF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select>
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_140px_80px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Name</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Type</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Added</div>
+        </div>
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-8">No contacts found.</div>}
+        {filtered.map((c,i)=>(
+          <div key={c.id} onClick={()=>onSelectContact(c)} className={`grid grid-cols-[1fr_140px_80px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
+            <div><div className="text-sm font-medium text-gray-800">{c.Name}</div><div className="text-xs text-gray-400">{c.Email}</div></div>
+            <div className="flex items-center"><Tag label={c.Type||"—"} color={typeColor(c.Type)}/></div>
+            <div className="text-xs text-gray-400 flex items-center">{safeDate(c.Date||c["Date Added"])}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} contact{filtered.length!==1?"s":""}</div>
+    </div>
+  );
+}
+
+// ─── ARCHIVE TAB ──────────────────────────────────────────────────────────────
+function ArchiveTab({leads,contacts,onSelectArchived}){
+  const [search,setSearch]=React.useState("");
+  const [reasonF,setReasonF]=React.useState("All");
+  const all=[...leads,...(contacts||[])];
+  const filtered=all.filter(item=>{const q=search.toLowerCase();const name=(item.Name||item["Name"]||"").toLowerCase();const email=(item.Email||item["Email"]||"").toLowerCase();return(!q||name.includes(q)||email.includes(q))&&(reasonF==="All"||(item.archiveReason||""===reasonF));});
+  return(
+    <div>
+      <div className="mb-1 text-base font-semibold text-gray-800">Archive</div>
+      <div className="text-xs text-gray-400 mb-4">Converted, hard no's, and leads that went silent. Click any row to view or restore.</div>
+      <div className="flex gap-2 mb-4">
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <select value={reasonF} onChange={e=>setReasonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Name</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Reason</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Archived</div>
+        </div>
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-8">Nothing archived yet.</div>}
+        {filtered.map((item,i)=>(
+          <div key={item.id} onClick={()=>onSelectArchived(item)} className={`grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 opacity-80 hover:opacity-100 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
+            <div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{item.Name||item["Name"]}{item.temperature&&<TempBadge temp={item.temperature}/>}</div>
+              <div className="text-xs text-gray-400">{item.Email||item["Email"]}{item._table==="contacts"?" · Contact":""}</div>
+            </div>
+            <div className="flex items-center"><Tag label={item.archiveReason||"—"} color={item.archiveReason==="Converted"?"green":item.archiveReason==="Not interested"?"red":"gray"}/></div>
+            <div className="text-xs text-gray-400 flex items-center">{safeDate(item.archiveDate)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} archived</div>
+    </div>
+  );
+}
+
+// ─── LOGIN ─────────────────────────────────────────────────────────────────────
+function Login({onLogin}){const [pw,setPw]=React.useState("");const [err,setErr]=React.useState("");const attempt=()=>{if(pw===PASSWORDS.admin){onLogin("admin");return;}if(pw===PASSWORDS.team){onLogin("team");return;}setErr("Incorrect password.");};return(<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="bg-white rounded-2xl shadow-lg p-8 w-80"><div className="text-lg font-bold text-gray-800 mb-1">Loop Abroad</div><div className="text-sm text-gray-400 mb-6">Leads Tracker</div><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder="Enter password" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-3"/>{err&&<div className="text-xs text-red-500 mb-2">{err}</div>}<button onClick={attempt} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">Sign in</button></div></div>);}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App(){
+  const [role,setRole]=React.useState(null);
+  const [tab,setTab]=React.useState("actions");
+  const [leads,setLeads]=React.useState([]);
+  const [contacts,setContacts]=React.useState([]);
+  const [selectedLead,setSelectedLead]=React.useState(null);
+  const [selectedContact,setSelectedContact]=React.useState(null);
+  const [selectedArchived,setSelectedArchived]=React.useState(null);
+  const [showLeadForm,setShowLeadForm]=React.useState(false);
+  const [showContactForm,setShowContactForm]=React.useState(false);
+  const [uploading,setUploading]=React.useState(false);
+  const [loading,setLoading]=React.useState(false);
+  const [toast,setToast]=React.useState("");
+
+  const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(""),3500);};
+
+  React.useEffect(()=>{
+    if(!role)return;
+    setLoading(true);
+    callScript("GET",{action:"read_filing_cabinet"}).then(data=>{
+      if(Array.isArray(data)){
+        const ls=data.filter(r=>r._table!=="contacts").map(r=>({...r,contactLog:parseLog(r.contactLog)}));
+        const cs=data.filter(r=>r._table==="contacts");
+        setLeads(ls);setContacts(cs);
+      }
+      setLoading(false);
+    });
+  },[role]);
+
+  const activeLeads=leads.filter(l=>!l.archived);
+  const archivedLeads=leads.filter(l=>l.archived);
+  const activeContacts=contacts.filter(c=>!c.archived);
+  const archivedContacts=contacts.filter(c=>c.archived);
+
+  const updateLead=updated=>{setLeads(prev=>prev.map(l=>l.id===updated.id?updated:l));if(selectedLead?.id===updated.id)setSelectedLead(updated);};
+  const archiveLead=archived=>{setLeads(prev=>prev.map(l=>l.id===archived.id?archived:l));showToast("Lead archived.");};
+  const archiveContact=(contact,reason)=>{const archived={...contact,archived:true,archiveReason:reason,archiveDate:todayDate()};setContacts(prev=>prev.map(c=>c.id===contact.id?archived:c));saveLead(archived);showToast("Contact archived.");};
+  const updateContact=updated=>{setContacts(prev=>prev.map(c=>c.id===updated.id?updated:c));};
+
+  const addLead=async form=>{
+    const id=generateId();
+    const dateAdded=safeDate(form["Date Added"])||todayDate();
+    const followUp=defaultFollowUp(dateAdded);
+    const how=form["Source"]||"Other";
+    const firstLog=form["Contact History"]?.trim()?[{id:Date.now(),date:dateAdded,who:form["Assigned to"],how,notes:form["Contact History"],replied:"No",replyContent:"",replyDate:""}]:[];
+    const lead={...form,id,Stage:"New","Date Added":dateAdded,followUp,contactLog:firstLog,archived:false};
+    setLeads(prev=>[lead,...prev]);setShowLeadForm(false);showToast("Lead added.");
+    await saveLead({...lead,contactLog:JSON.stringify(firstLog)});
+    if(form["Assigned to"])await sendNotification(form["Assigned to"],`📋 New lead assigned to you: *${form["Name"]}*\nPrograms: ${form["Programs Interested In"]||"—"}\nSource: ${form["Source"]||"—"}`);
+  };
+
+  const uploadNewLeads=async()=>{
+    setUploading(true);
+    try{
+      const data=await callScript("GET",{action:"read_tab",gid:NEW_LEADS_GID});
+      if(!data.rows){alert("Could not read New Leads tab.");setUploading(false);return;}
+      const existingEmails=new Set(leads.map(l=>(l["Email"]||"").toLowerCase().trim()));
+      let added=0,skipped=0;const toSave=[];
+      for(const rawRow of data.rows){
+        const row=normalizeRow(rawRow);
+        if(!(row["Name"]||"").trim())continue;
+        const email=(row["Email"]||"").toLowerCase().trim();
+        if(email&&existingEmails.has(email)){skipped++;continue;}
+        const id=generateId();
+        const dateAdded=safeDate(row["Date Added"])||todayDate();
+        // Use Snooze Until from sheet if set, otherwise default to 3 business days from Date Added
+        const snoozeDate=row["followUp"]?safeDate(row["followUp"]):null;
+        const followUp=snoozeDate||defaultFollowUp(dateAdded);
+        // Normalize Source value to match SOURCES array (case-insensitive)
+        const rawSource=row["Source"]||"";
+        const normSource=SOURCES.find(s=>s.toLowerCase()===rawSource.toLowerCase().trim())||rawSource;
+        // Normalize Contact is a value
+        const rawContactIs=row["Contact is a"]||"";
+        const normContactIs=CONTACT_IS.find(s=>s.toLowerCase()===rawContactIs.toLowerCase().trim())||rawContactIs;
+        const how=normSource||"Other";
+        const firstLog=row["Contact History"]?.trim()?[{id:Date.now()+added,date:dateAdded,who:row["Assigned to"],how,notes:row["Contact History"],replied:"No",replyContent:"",replyDate:""}]:[];
+        const lead={...row,id,Stage:"New","Date Added":dateAdded,followUp,"Source":normSource,"Contact is a":normContactIs,contactLog:firstLog,archived:false};
+        if(email)existingEmails.add(email);
+        toSave.push(lead);added++;
+      }
+      setLeads(prev=>[...toSave,...prev]);
+      const byPerson={};toSave.forEach(l=>{if(l["Assigned to"]){(byPerson[l["Assigned to"]]||(byPerson[l["Assigned to"]]=[]) ).push(l);}});
+      for(const[p,pL]of Object.entries(byPerson))await sendNotification(p,`📋 ${pL.length} new lead${pL.length>1?"s":""} assigned to you:\n${pL.map(l=>`• ${l["Name"]}`).join("\n")}`);
+      await callScript("POST",{action:"bulk_upsert",leads:toSave.map(l=>({...l,contactLog:JSON.stringify(l.contactLog)}))});
+      showToast(`Uploaded ${added} lead${added!==1?"s":""}.${skipped?` ${skipped} skipped (duplicate).`:""}`);
+    }catch(e){alert("Upload error: "+e.message);}
+    setUploading(false);
+  };
+
+  const uploadContacts=async()=>{
+    setUploading(true);
+    try{
+      const data=await callScript("GET",{action:"read_tab",gid:CONTACTS_GID});
+      if(!data.rows){alert("Could not read Contacts tab.");setUploading(false);return;}
+      const existingEmails=new Set(contacts.map(c=>(c.Email||"").toLowerCase().trim()));
+      let added=0,skipped=0;const toSave=[];
+      for(const rawRow of data.rows){
+        const row=normalizeRow(rawRow);
+        if(!(row["Name"]||"").trim())continue;
+        const email=(row["Email"]||"").toLowerCase().trim();
+        if(email&&existingEmails.has(email)){skipped++;continue;}
+        const contact={...row,id:generateId(),_table:"contacts",Date:safeDate(row["Date"]||row["Date Added"])||todayDate()};
+        if(email)existingEmails.add(email);
+        toSave.push(contact);added++;
+      }
+      setContacts(prev=>[...toSave,...prev]);
+      await callScript("POST",{action:"bulk_upsert",leads:toSave});
+      showToast(`Uploaded ${added} contact${added!==1?"s":""}.${skipped?` ${skipped} skipped.`:""}`);
+    }catch(e){alert("Upload error: "+e.message);}
+    setUploading(false);
+  };
+
+  const addContact=async form=>{const contact={...form,id:generateId(),_table:"contacts",Date:safeDate(form.Date)||todayDate()};setContacts(prev=>[contact,...prev]);setShowContactForm(false);showToast("Contact added.");await saveLead(contact);};
+
+  const moveLeadToContacts=async(lead,contactType)=>{
+    const note=`Moved from active leads on ${todayDate()}. Was at stage: ${lead.Stage||"—"}. Assigned to: ${lead["Assigned to"]||"—"}. Source: ${lead["Source"]||"—"}. Programs: ${lead["Programs Interested In"]||"—"}.`;
+    const contact={...lead,_table:"contacts",Type:contactType,Date:safeDate(lead["Date Added"])||todayDate(),Notes:(lead.Notes?lead.Notes+"\n\n":"")+note};
+    const archived={...lead,archived:true,archiveReason:"Moved to Contacts",archiveDate:todayDate()};
+    setLeads(prev=>prev.map(l=>l.id===lead.id?archived:l));
+    setContacts(prev=>[contact,...prev]);
+    await saveLead({...archived,contactLog:JSON.stringify(archived.contactLog||[])});
+    await saveLead(contact);
+    showToast("Moved to Contacts. All info preserved.");
+  };
+
+  const moveContactToLeads=async contact=>{
+    const restoreNote={id:Date.now(),date:todayDate(),who:"",how:"Other",notes:`Moved from Contacts to Active Leads on ${todayDate()}.`,replied:"No",replyContent:"",replyDate:""};
+    const prevStage=contact.Stage||"New";
+    const lead={...contact,_table:undefined,archived:false,Stage:prevStage,"Date Added":safeDate(contact["Date Added"]||contact.Date)||todayDate(),followUp:defaultFollowUp(todayDate()),contactLog:[...(parseLog(contact.contactLog)),restoreNote]};
+    setLeads(prev=>[lead,...prev]);
+    const archivedContact={...contact,archived:true,archiveReason:"Moved to Leads",archiveDate:todayDate()};
+    setContacts(prev=>prev.map(c=>c.id===contact.id?archivedContact:c));
+    setSelectedContact(null);
+    await saveLead({...lead,contactLog:JSON.stringify(lead.contactLog)});
+    await saveLead(archivedContact);
+    showToast("Moved to active leads. All info preserved.");
+  };
+
+  const restoreFromArchive=async(item,destination)=>{
+    const restoreNote=`Restored from archive on ${todayDate()}. Was archived as: ${item.archiveReason||"—"} on ${safeDate(item.archiveDate)}.`;
+    if(destination==="leads"){
+      const logNote={id:Date.now(),date:todayDate(),who:"",how:"Other",notes:restoreNote,replied:"No",replyContent:"",replyDate:""};
+      const restored={...item,_table:undefined,archived:false,archiveReason:undefined,archiveDate:undefined,Stage:item.Stage||"Contacted",followUp:defaultFollowUp(todayDate()),contactLog:[...(parseLog(item.contactLog)),logNote],Notes:(item.Notes?item.Notes+"\n\n":"")+restoreNote};
+      setLeads(prev=>{const exists=prev.find(l=>l.id===item.id);return exists?prev.map(l=>l.id===item.id?restored:l):[restored,...prev];});
+      setContacts(prev=>prev.filter(c=>c.id!==item.id));
+      await saveLead({...restored,contactLog:JSON.stringify(restored.contactLog)});
+    }else{
+      const restored={...item,_table:"contacts",archived:false,archiveReason:undefined,archiveDate:undefined,Date:safeDate(item.Date||item["Date Added"])||todayDate(),Notes:(item.Notes?item.Notes+"\n\n":"")+restoreNote};
+      setContacts(prev=>{const exists=prev.find(c=>c.id===item.id);return exists?prev.map(c=>c.id===item.id?restored:c):[restored,...prev];});
+      setLeads(prev=>prev.filter(l=>l.id!==item.id));
+      await saveLead(restored);
+    }
+    setSelectedArchived(null);
+    showToast("Restored successfully. All info preserved.");
+  };
+
+  if(!role)return <Login onLogin={setRole}/>;
+
+  const TABS=[{id:"actions",label:"Actions"},{id:"leads",label:"Current Leads"},{id:"contacts",label:"Contacts"},{id:"archive",label:"Archive"}];
+
+  return(
+    <div className="min-h-screen bg-gray-50">
+      <div className="bg-white border-b border-gray-200 sticky top-0 z-40">
+        <div className="max-w-4xl mx-auto px-4">
+          <div className="flex items-center justify-between h-12">
+            <div className="text-sm font-bold text-indigo-700">Loop Abroad Leads</div>
+            <div className="flex gap-0">{TABS.map(t=><button key={t.id} onClick={()=>setTab(t.id)} className={`px-4 py-3 text-sm border-b-2 transition-colors ${tab===t.id?"border-indigo-600 text-indigo-700 font-medium":"border-transparent text-gray-400 hover:text-gray-600"}`}>{t.label}</button>)}</div>
+            <button onClick={()=>setRole(null)} className="text-xs text-gray-400 hover:text-gray-600">Sign out</button>
+          </div>
+        </div>
+      </div>
+      <div className="max-w-4xl mx-auto px-4 py-6">
+        {loading&&<div className="text-center text-gray-400 text-sm py-12">Loading…</div>}
+        {!loading&&<>
+          {tab==="actions"  &&<ActionsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)}/>}
+          {tab==="leads"    &&<CurrentLeadsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)} onUpload={uploadNewLeads} uploading={uploading}/>}
+          {tab==="contacts" &&<ContactsTab contacts={activeContacts} onSelectContact={setSelectedContact} onAddContact={()=>setShowContactForm(true)} onUpload={uploadContacts} uploading={uploading}/>}
+          {tab==="archive"  &&<ArchiveTab leads={archivedLeads} contacts={archivedContacts} onSelectArchived={setSelectedArchived}/>}
+        </>}
+      </div>
+
+      {selectedLead&&<LeadProfile lead={selectedLead} onClose={()=>setSelectedLead(null)} onUpdate={updateLead} onArchive={archiveLead} onMoveToContacts={moveLeadToContacts}/>}
+      {selectedContact&&<ContactProfile contact={selectedContact} onClose={()=>setSelectedContact(null)} onUpdate={updateContact} onMoveToLeads={moveContactToLeads} onArchiveContact={archiveContact}/>}
+      {selectedArchived&&<ArchivedItemProfile item={selectedArchived} onClose={()=>setSelectedArchived(null)} onRestore={restoreFromArchive}/>}
+      {showLeadForm&&<LeadForm onSave={addLead} onCancel={()=>setShowLeadForm(false)}/>}
+      {showContactForm&&<ContactForm onSave={addContact} onCancel={()=>setShowContactForm(false)}/>}
+
+      {toast&&<div className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-sm px-5 py-2.5 rounded-full shadow-lg z-50">{toast}</div>}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
