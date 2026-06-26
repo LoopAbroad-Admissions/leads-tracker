@@ -732,13 +732,14 @@ function App(){
   const uploadNewLeads=async()=>{
     setUploading(true);
     try{
-      // Reload current leads from sheet first so we have fresh data for duplicate check
+      // Reload from sheet + merge with current state so duplicate check is always complete
       const freshData=await callScript("GET",{action:"read_filing_cabinet"});
-      const freshLeads=Array.isArray(freshData)?freshData.filter(r=>r._table!=="contacts"):leads;
+      const sheetLeads=Array.isArray(freshData)?freshData.filter(r=>r._table!=="contacts"):[];
+      const allKnown=[...leads,...sheetLeads];
       const data=await callScript("GET",{action:"read_tab",gid:NEW_LEADS_GID});
       if(!data.rows){alert("Could not read New Leads tab.");setUploading(false);return;}
-      const existingEmails=new Set(freshLeads.map(l=>(l["Email"]||"").toLowerCase().trim()).filter(Boolean));
-      const existingNames=new Set(freshLeads.map(l=>(l["Name"]||"").toLowerCase().trim()).filter(Boolean));
+      const existingEmails=new Set(allKnown.map(l=>(l["Email"]||"").toLowerCase().trim()).filter(Boolean));
+      const existingNames=new Set(allKnown.map(l=>(l["Name"]||"").toLowerCase().trim()).filter(Boolean));
       let added=0,skipped=0;const toSave=[];
       for(const rawRow of data.rows){
         const row=normalizeRow(rawRow);
