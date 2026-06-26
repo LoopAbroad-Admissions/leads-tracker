@@ -74,7 +74,7 @@ function needsReplyFlag(lead){if(!lead.contactLog||lead.contactLog.length===0)re
 function parseLog(raw){if(!raw)return[];if(Array.isArray(raw))return raw;try{return JSON.parse(raw);}catch{return[];}}
 async function callScript(method,payload){try{if(method==="GET"){const r=await fetch(`${APPS_SCRIPT_URL}?${new URLSearchParams(payload)}`);return await r.json();}await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});return{success:true};}catch(e){console.error(e);return{error:e.message};}}
 async function saveLead(lead){await callScript("POST",{action:"upsert",lead});}
-async function sendNotification(person,text){const url=WEBHOOKS[person];if(!url)return;await callScript("POST",{action:"notify",webhookUrl:url,text});}
+async function sendNotification(person,text){const url=WEBHOOKS[person];if(!url)return;try{await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});}catch(e){console.error("Notification error:",e);}}
 
 // Normalize sheet row keys to match tracker field names regardless of capitalization/spacing
 const FIELD_MAP={
@@ -732,15 +732,20 @@ function App(){
   const uploadNewLeads=async()=>{
     setUploading(true);
     try{
+      // Reload current leads from sheet first so we have fresh data for duplicate check
+      const freshData=await callScript("GET",{action:"read_filing_cabinet"});
+      const freshLeads=Array.isArray(freshData)?freshData.filter(r=>r._table!=="contacts"):leads;
       const data=await callScript("GET",{action:"read_tab",gid:NEW_LEADS_GID});
       if(!data.rows){alert("Could not read New Leads tab.");setUploading(false);return;}
-      const existingEmails=new Set(leads.map(l=>(l["Email"]||"").toLowerCase().trim()));
+      const existingEmails=new Set(freshLeads.map(l=>(l["Email"]||"").toLowerCase().trim()).filter(Boolean));
+      const existingNames=new Set(freshLeads.map(l=>(l["Name"]||"").toLowerCase().trim()).filter(Boolean));
       let added=0,skipped=0;const toSave=[];
       for(const rawRow of data.rows){
         const row=normalizeRow(rawRow);
         if(!(row["Name"]||"").trim())continue;
         const email=(row["Email"]||"").toLowerCase().trim();
-        if(email&&existingEmails.has(email)){skipped++;continue;}
+        const name=(row["Name"]||"").toLowerCase().trim();
+        if((email&&existingEmails.has(email))||(name&&existingNames.has(name))){skipped++;continue;}
         const id=generateId();
         const dateAdded=safeDate(row["Date Added"])||todayDate();
         // Use Snooze Until from sheet if set, otherwise default to 3 business days from Date Added
@@ -756,6 +761,7 @@ function App(){
         const firstLog=row["Contact History"]?.trim()?[{id:Date.now()+added,date:dateAdded,who:row["Assigned to"],how,notes:row["Contact History"],replied:"No",replyContent:"",replyDate:""}]:[];
         const lead={...row,id,Stage:"New","Date Added":dateAdded,followUp,"Source":normSource,"Contact is a":normContactIs,contactLog:firstLog,archived:false};
         if(email)existingEmails.add(email);
+        if(name)existingNames.add(name);
         toSave.push(lead);added++;
       }
       setLeads(prev=>[...toSave,...prev]);
