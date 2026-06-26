@@ -206,7 +206,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts}){
   const [l,setL]=React.useState({...lead});
   const [logForm,setLogForm]=React.useState({date:todayDate(),who:"",how:"",notes:"",replied:"No",replyContent:"",replyDate:""});
   const [followUp,setFollowUp]=React.useState(lead.followUp||defaultFollowUp(lead["Date Added"]));
-  const logDateMounted=React.useRef(false);
+  const [logFollowUp,setLogFollowUp]=React.useState(defaultFollowUp(todayDate()));
   const [addingReply,setAddingReply]=React.useState(null);
   const [editingEntryId,setEditingEntryId]=React.useState(null);
   const [editingNotes,setEditingNotes]=React.useState("");
@@ -215,7 +215,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts}){
   const [showMoveContacts,setShowMoveContacts]=React.useState(false);
   const [contactType,setContactType]=React.useState("");
 
-  React.useEffect(()=>{if(!logDateMounted.current){logDateMounted.current=true;return;}setFollowUp(defaultFollowUp(logForm.date));},[logForm.date]);
+  React.useEffect(()=>{setLogFollowUp(defaultFollowUp(logForm.date));},[logForm.date]);
 
   const set=(k,v)=>setL(prev=>({...prev,[k]:v}));
 
@@ -234,11 +234,11 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts}){
     if(newStage==="New")newStage="Contacted";
     const noReplies=log.filter(e=>e.replied==="No"||e.replied==="Not sure yet").length;
     if(noReplies>=5){
-      const archived={...l,Stage:newStage,contactLog:log,followUp,archived:true,archiveReason:"No reply",archiveDate:todayDate()};
+      const archived={...l,Stage:newStage,contactLog:log,followUp:logFollowUp,archived:true,archiveReason:"No reply",archiveDate:todayDate()};
       onArchive(archived);await saveLead({...archived,contactLog:JSON.stringify(log)});onClose();return;
     }
-    const updated={...l,Stage:newStage,contactLog:log,followUp};
-    setL(updated);onUpdate(updated);
+    const updated={...l,Stage:newStage,contactLog:log,followUp:logFollowUp};
+    setL(updated);onUpdate(updated);setFollowUp(logFollowUp);
     await saveLead({...updated,contactLog:JSON.stringify(log)});
     setLogForm({date:todayDate(),who:"",how:"",notes:"",replied:"No",replyContent:"",replyDate:""});
   };
@@ -373,7 +373,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts}){
                 </div>
               )}
               <div><label className="text-xs text-gray-400 block mb-1">Next follow-up <span className="text-gray-300">(auto: 3 business days from date above)</span></label>
-                <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/>
+                <input value={logFollowUp} onChange={e=>setLogFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/>
               </div>
               <button onClick={logContact} className="w-full py-2 text-xs bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Save &amp; set follow-up</button>
             </div>
