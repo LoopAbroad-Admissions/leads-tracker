@@ -86,6 +86,7 @@ const FIELD_MAP={
   "programs interested in":"Programs Interested In","program interested in":"Programs Interested In",
   "program length":"Program Length","time of travel":"Time of Travel",
   "assigned to":"Assigned to","temperature":"temperature",
+  "alumni program":"Alumni Program","alumni year":"Alumni Year",
   "snooze until":"followUp","next follow up":"followUp","next follow-up":"followUp",
   // contacts sheet
   "date":"Date","type":"Type","program":"Program","notes":"Notes",
@@ -137,7 +138,7 @@ function ContactDots({count}){const dots=Math.min(count,5);return <div className
 
 // ─── LEAD FORM ────────────────────────────────────────────────────────────────
 function LeadForm({initial,onSave,onCancel,title}){
-  const blank={"Date Added":todayDate(),Name:"",Email:"",Phone:"",Source:"","Contact History":"","School Name":"","School Type":"","Contact is a":"","Area of Interest":"","Programs Interested In":"","Program Length":"","Time of Travel":"","Assigned to":"",temperature:""};
+  const blank={"Date Added":todayDate(),Name:"",Email:"",Phone:"",Source:"","Contact History":"","School Name":"","School Type":"","Contact is a":"","Area of Interest":"","Programs Interested In":"","Program Length":"","Time of Travel":"","Assigned to":"",temperature:"","Alumni Program":"","Alumni Year":""};
   const [form,setForm]=React.useState(initial||blank);
   const set=(k,v)=>setForm(f=>({...f,[k]:v}));
   return(
@@ -159,6 +160,7 @@ function LeadForm({initial,onSave,onCancel,title}){
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Programs Interested In</label><MultiSelect options={PROGRAMS} value={form["Programs Interested In"]} onChange={v=>set("Programs Interested In",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Program Length</label><MultiSelect options={LENGTHS} value={form["Program Length"]} onChange={v=>set("Program Length",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Time of Travel</label><MultiSelect options={TRAVELS} value={form["Time of Travel"]} onChange={v=>set("Time of Travel",v)}/></div>
+          <div className="col-span-2"><div className="border-t border-gray-100 pt-3 mt-1"><div className="text-xs font-semibold text-amber-600 mb-2">🎓 Alumni Info <span className="font-normal text-gray-400">(fill in if this person attended before)</span></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 mb-1 block">Previous Program</label><select value={form["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"><option value="">—</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 mb-1 block">Year Attended</label><input type="number" value={form["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"/></div></div></div></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Contact History / Initial Notes</label><textarea value={form["Contact History"]} onChange={e=>set("Contact History",e.target.value)} placeholder="What was said in the initial contact…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
@@ -306,6 +308,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             <div><label className="text-xs text-gray-400 block mb-2">Programs Interested In</label><MultiSelect options={PROGRAMS} value={l["Programs Interested In"]||""} onChange={v=>set("Programs Interested In",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Program Length</label><MultiSelect options={LENGTHS} value={l["Program Length"]||""} onChange={v=>set("Program Length",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Time of Travel</label><MultiSelect options={TRAVELS} value={l["Time of Travel"]||""} onChange={v=>set("Time of Travel",v)}/></div>
+            <div className="border border-amber-200 rounded-lg p-3 bg-amber-50"><div className="text-xs font-semibold text-amber-600 mb-2">🎓 Alumni Info</div><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-500 block mb-1">Previous Program</label><select value={l["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"><option value="">—</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 block mb-1">Year Attended</label><input type="number" value={l["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div></div>
             <div>
               <label className="text-xs text-gray-400 block mb-1">Next Follow-up <span className="text-gray-300 font-normal">(also your snooze — set far out to pause)</span></label>
               <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>
@@ -481,7 +484,7 @@ function ArchivedItemProfile({item,onClose,onRestore}){
           {isContact&&item.Type&&<Tag label={item.Type} color={typeColor(item.Type)}/>}
         </div>
         <div className="text-xs text-gray-500 space-y-1 max-h-48 overflow-y-auto bg-gray-50 rounded-lg p-3 mb-4">
-          {["Email","Phone","Source","School Name","School Type","Contact is a","Area of Interest","Programs Interested In","Program Length","Time of Travel","Assigned to","Date Added","Date","Program","Notes"].map(k=>(item[k]?<div key={k}><span className="font-medium text-gray-600">{k}:</span> {item[k]}</div>:null))}
+          {["Email","Phone","Source","School Name","School Type","Contact is a","Area of Interest","Programs Interested In","Program Length","Time of Travel","Assigned to","Alumni Program","Alumni Year","Date Added","Date","Program","Notes"].map(k=>(item[k]?<div key={k}><span className="font-medium text-gray-600">{k}:</span> {item[k]}</div>:null))}
         </div>
         <div className="flex gap-2">
           <button onClick={()=>onRestore(item,"leads")} className="flex-1 py-2 text-sm border border-indigo-200 rounded-lg text-indigo-600 hover:bg-indigo-50">Restore to leads</button>
@@ -511,6 +514,7 @@ function ActionsTab({leads,onSelectLead,onAddLead}){
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-medium text-gray-800">{lead["Name"]}</span>
             {lead.temperature&&<TempBadge temp={lead.temperature}/>}
+            {lead["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">🎓 Alumni</span>}
             {nr&&<Tag label="Reply?" color="orange"/>}
           </div>
           <div className="text-right flex-shrink-0 ml-2">
@@ -583,7 +587,7 @@ function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
         {filtered.map((l,i)=>(
           <div key={l.id} onClick={()=>onSelectLead(l)} className={`grid grid-cols-[1fr_100px_80px_70px_90px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div>
-              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}{isFuture(l)&&<span className="text-xs text-blue-400" title={`Follow-up: ${l.followUp}`}>⏸</span>}</div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}{l["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">🎓 Alumni</span>}{isFuture(l)&&<span className="text-xs text-blue-400" title={`Follow-up: ${l.followUp}`}>⏸</span>}</div>
               <div className="text-xs text-gray-400">{l["Email"]}</div>
             </div>
             <div className="flex items-center"><Tag label={l["Stage"]||"New"} color={stageColor(l["Stage"])}/></div>
@@ -634,6 +638,41 @@ function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading})
         ))}
       </div>
       <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} contact{filtered.length!==1?"s":""}</div>
+    </div>
+  );
+}
+
+// ─── ALUMNI TAB ───────────────────────────────────────────────────────────────
+function AlumniTab({leads,onSelectLead,onSelectArchived}){
+  const [search,setSearch]=React.useState("");
+  const alumni=leads.filter(l=>l["Alumni Program"]);
+  const filtered=alumni.filter(l=>!search||(l["Name"]||"").toLowerCase().includes(search.toLowerCase())||(l["Email"]||"").toLowerCase().includes(search.toLowerCase()));
+  return(
+    <div>
+      <div className="mb-1 text-base font-semibold text-gray-800">Alumni</div>
+      <div className="text-xs text-gray-400 mb-4">People who have traveled with Loop Abroad before. They get a special discount — check their previous program before making recommendations.</div>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"/>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_120px_80px_100px] gap-3 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
+          <div className="text-xs text-amber-700 uppercase tracking-wider font-medium">Name</div>
+          <div className="text-xs text-amber-700 uppercase tracking-wider font-medium">Prev. Program</div>
+          <div className="text-xs text-amber-700 uppercase tracking-wider font-medium">Year</div>
+          <div className="text-xs text-amber-700 uppercase tracking-wider font-medium">Status</div>
+        </div>
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-8">No alumni yet. Add a lead and fill in the Alumni Info section.</div>}
+        {filtered.map((l,i)=>(
+          <div key={l.id} onClick={()=>l.archived?onSelectArchived(l):onSelectLead(l)} className={`grid grid-cols-[1fr_120px_80px_100px] gap-3 px-4 py-3 cursor-pointer hover:bg-amber-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
+            <div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}</div>
+              <div className="text-xs text-gray-400">{l["Programs Interested In"]||"—"}</div>
+            </div>
+            <div className="text-sm text-gray-600 flex items-center">{l["Alumni Program"]||"—"}</div>
+            <div className="text-sm text-gray-500 flex items-center">{l["Alumni Year"]||"—"}</div>
+            <div className="flex items-center">{l.archived?<Tag label="Archived" color="gray"/>:<Tag label={l["Stage"]||"New"} color={stageColor(l["Stage"])}/>}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} alum{filtered.length!==1?"ni":""}</div>
     </div>
   );
 }
@@ -846,7 +885,8 @@ function App(){
 
   if(!role)return <Login onLogin={setRole}/>;
 
-  const TABS=[{id:"actions",label:"Actions"},{id:"leads",label:"Current Leads"},{id:"contacts",label:"Contacts"},{id:"archive",label:"Archive"}];
+  const allLeads=[...leads,...archivedLeads];
+  const TABS=[{id:"actions",label:"Actions"},{id:"leads",label:"Current Leads"},{id:"contacts",label:"Contacts"},{id:"alumni",label:"🎓 Alumni"},{id:"archive",label:"Archive"}];
 
   return(
     <div className="min-h-screen bg-gray-50">
@@ -865,6 +905,7 @@ function App(){
           {tab==="actions"  &&<ActionsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)}/>}
           {tab==="leads"    &&<CurrentLeadsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)} onUpload={uploadNewLeads} uploading={uploading}/>}
           {tab==="contacts" &&<ContactsTab contacts={activeContacts} onSelectContact={setSelectedContact} onAddContact={()=>setShowContactForm(true)} onUpload={uploadContacts} uploading={uploading}/>}
+          {tab==="alumni"   &&<AlumniTab leads={allLeads} onSelectLead={setSelectedLead} onSelectArchived={setSelectedArchived}/>}
           {tab==="archive"  &&<ArchiveTab leads={archivedLeads} contacts={archivedContacts} onSelectArchived={setSelectedArchived}/>}
         </>}
       </div>
