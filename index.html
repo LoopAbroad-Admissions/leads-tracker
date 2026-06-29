@@ -700,8 +700,9 @@ function App(){
     setLoading(true);
     callScript("GET",{action:"read_filing_cabinet"}).then(data=>{
       if(Array.isArray(data)){
-        const ls=data.filter(r=>r._table!=="contacts").map(r=>({...r,contactLog:parseLog(r.contactLog)}));
-        const cs=data.filter(r=>r._table==="contacts");
+        const fixBools=r=>({...r,archived:r.archived===true||r.archived==="true",contactLog:parseLog(r.contactLog)});
+        const ls=data.filter(r=>r._table!=="contacts").map(fixBools);
+        const cs=data.filter(r=>r._table==="contacts").map(fixBools);
         setLeads(ls);setContacts(cs);
       }
       setLoading(false);
