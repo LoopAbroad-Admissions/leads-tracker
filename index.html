@@ -887,7 +887,7 @@ function App(){
         await callScript("POST",{action:"bulk_upsert",leads:updates.map(l=>({...l,contactLog:JSON.stringify(l.contactLog||[])}))});
       }
       const skipped=conflicts.length-updates.length;
-      showToast(`Uploaded ${toSave.length} new lead${toSave.length!==1?"s":""}.${updates.length?` ${updates.length} updated.":""}${skipped?` ${skipped} skipped.":""}`);
+      showToast("Uploaded "+toSave.length+" new lead"+(toSave.length!==1?"s":"")+"."+(updates.length?" "+updates.length+" updated.":"")+(skipped?" "+skipped+" skipped.":""));
     }catch(e){alert("Upload error: "+e.message);}
     setUploading(false);
   };
