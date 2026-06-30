@@ -714,6 +714,49 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
   );
 }
 
+// ─── DUPLICATE MODAL ──────────────────────────────────────────────────────────
+function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
+  const {existing,incoming}=conflict;
+  const SHOW_FIELDS=["Assigned to","Programs Interested In","Area of Interest","Time of Travel","School Name","Phone","Source"];
+  const changed=SHOW_FIELDS.filter(f=>incoming[f]&&incoming[f]!==existing[f]);
+  const same=SHOW_FIELDS.filter(f=>incoming[f]&&incoming[f]===existing[f]);
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-xs text-gray-400 mb-0.5">Duplicate email found — {index} of {total}</div>
+            <div className="text-base font-bold text-gray-900">{existing["Name"]||existing.Name}</div>
+            <div className="text-xs text-gray-400">{existing["Email"]||existing.Email}</div>
+          </div>
+          <div className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 px-2 py-1 rounded-lg">Already in tracker</div>
+        </div>
+        {changed.length>0&&(
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-indigo-600 mb-2">⚡ Changed fields (new → current)</div>
+            <div className="space-y-1.5">
+              {changed.map(f=>(
+                <div key={f} className="grid grid-cols-[110px_1fr_1fr] gap-2 text-xs items-start">
+                  <span className="text-gray-400">{f}</span>
+                  <span className="text-indigo-700 font-medium bg-indigo-50 rounded px-1.5 py-0.5">{incoming[f]||"—"}</span>
+                  <span className="text-gray-400 bg-gray-50 rounded px-1.5 py-0.5">{existing[f]||"—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {changed.length===0&&<div className="text-xs text-gray-400 mb-4 bg-gray-50 rounded-lg p-3">No field changes detected — the sheet data matches what's already in the tracker.</div>}
+        {same.length>0&&<div className="mb-5"><div className="text-xs font-semibold text-gray-400 mb-2">Unchanged</div><div className="flex flex-wrap gap-1">{same.map(f=><span key={f} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{f}: {existing[f]}</span>)}</div></div>}
+        <div className="text-xs text-gray-400 mb-4 italic">Contact log and history will always be preserved.</div>
+        <div className="flex gap-3">
+          <button onClick={onSkip} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">Keep existing</button>
+          <button onClick={onUpdate} className="flex-1 py-2.5 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Update with new info</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── LOGIN ─────────────────────────────────────────────────────────────────────
 function Login({onLogin}){const [pw,setPw]=React.useState("");const [err,setErr]=React.useState("");const attempt=()=>{if(pw===PASSWORDS.admin){onLogin("admin");return;}if(pw===PASSWORDS.team){onLogin("team");return;}setErr("Incorrect password.");};return(<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="bg-white rounded-2xl shadow-lg p-8 w-80"><div className="text-lg font-bold text-gray-800 mb-1">Loop Abroad</div><div className="text-sm text-gray-400 mb-6">Leads Tracker</div><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder="Enter password" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-3"/>{err&&<div className="text-xs text-red-500 mb-2">{err}</div>}<button onClick={attempt} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">Sign in</button></div></div>);}
 
@@ -729,6 +772,12 @@ function App(){
   const [showLeadForm,setShowLeadForm]=React.useState(false);
   const [showContactForm,setShowContactForm]=React.useState(false);
   const [uploading,setUploading]=React.useState(false);
+  const [dupQueue,setDupQueue]=React.useState([]);
+  const [dupIndex,setDupIndex]=React.useState(0);
+  const dupResolveRef=React.useRef(null);
+  const [dupQueue,setDupQueue]=React.useState([]);
+  const [dupIndex,setDupIndex]=React.useState(0);
+  const dupResolveRef=React.useRef(null);
   const [loading,setLoading]=React.useState(false);
   const [loadError,setLoadError]=React.useState(false);
   const [toast,setToast]=React.useState("");
@@ -779,44 +828,69 @@ function App(){
   const uploadNewLeads=async()=>{
     setUploading(true);
     try{
-      // Reload from sheet + merge with current state so duplicate check is always complete
       const freshData=await callScript("GET",{action:"read_filing_cabinet"});
-      const sheetLeads=Array.isArray(freshData)?freshData.filter(r=>r._table!=="contacts"):[];
-      const allKnown=[...leads,...sheetLeads];
+      const allKnown=Array.isArray(freshData)?freshData:leads;
       const data=await callScript("GET",{action:"read_tab",gid:NEW_LEADS_GID});
       if(!data.rows){alert("Could not read New Leads tab.");setUploading(false);return;}
-      const existingEmails=new Set(allKnown.map(l=>(l["Email"]||"").toLowerCase().trim()).filter(Boolean));
+      const emailMap={};
+      allKnown.forEach(l=>{const e=(l["Email"]||"").toLowerCase().trim();if(e)emailMap[e]=l;});
       const existingNames=new Set(allKnown.map(l=>(l["Name"]||"").toLowerCase().trim()).filter(Boolean));
-      let added=0,skipped=0;const toSave=[];
+      const toSave=[];const conflicts=[];const processedEmails=new Set();
       for(const rawRow of data.rows){
         const row=normalizeRow(rawRow);
         if(!(row["Name"]||"").trim())continue;
         const email=(row["Email"]||"").toLowerCase().trim();
         const name=(row["Name"]||"").toLowerCase().trim();
-        if((email&&existingEmails.has(email))||(name&&existingNames.has(name))){skipped++;continue;}
-        const id=generateId();
         const dateAdded=safeDate(row["Date Added"])||todayDate();
-        // Use Snooze Until from sheet if set, otherwise default to 3 business days from Date Added
         const snoozeDate=row["followUp"]?safeDate(row["followUp"]):null;
         const followUp=snoozeDate||defaultFollowUp(dateAdded);
-        // Normalize Source value to match SOURCES array (case-insensitive)
         const rawSource=row["Source"]||"";
         const normSource=SOURCES.find(s=>s.toLowerCase()===rawSource.toLowerCase().trim())||rawSource;
-        // Normalize Contact is a value
         const rawContactIs=row["Contact is a"]||"";
         const normContactIs=CONTACT_IS.find(s=>s.toLowerCase()===rawContactIs.toLowerCase().trim())||rawContactIs;
         const how=normSource||"Other";
-        const firstLog=row["Contact History"]?.trim()?[{id:Date.now()+added,date:dateAdded,who:row["Assigned to"],how,notes:row["Contact History"],replied:"No",replyContent:"",replyDate:""}]:[];
-        const lead={...row,id,Stage:"New","Date Added":dateAdded,followUp,"Source":normSource,"Contact is a":normContactIs,contactLog:firstLog,archived:false};
-        if(email)existingEmails.add(email);
+        const incomingLead={...row,"Date Added":dateAdded,followUp,"Source":normSource,"Contact is a":normContactIs};
+        if(email&&emailMap[email]&&!processedEmails.has(email)){
+          processedEmails.add(email);
+          conflicts.push({existing:emailMap[email],incoming:incomingLead});
+          continue;
+        }
+        if(!email&&name&&existingNames.has(name))continue;
+        const id=generateId();
+        const firstLog=row["Contact History"]?.trim()?[{id:Date.now()+toSave.length,date:dateAdded,who:row["Assigned to"],how,notes:row["Contact History"],replied:"No",replyContent:"",replyDate:""}]:[];
+        const lead={...incomingLead,id,Stage:"New",contactLog:firstLog,archived:false};
+        if(email)processedEmails.add(email);
         if(name)existingNames.add(name);
-        toSave.push(lead);added++;
+        toSave.push(lead);
       }
-      setLeads(prev=>[...toSave,...prev]);
-      const byPerson={};toSave.forEach(l=>{if(l["Assigned to"]){(byPerson[l["Assigned to"]]||(byPerson[l["Assigned to"]]=[]) ).push(l);}});
-      for(const[p,pL]of Object.entries(byPerson))await sendNotification(p,`📋 ${pL.length} new lead${pL.length>1?"s":""} assigned to you:\n${pL.map(l=>`• ${l["Name"]}`).join("\n")}`);
-      await callScript("POST",{action:"bulk_upsert",leads:toSave.map(l=>({...l,contactLog:JSON.stringify(l.contactLog)}))});
-      showToast(`Uploaded ${added} lead${added!==1?"s":""}.${skipped?` ${skipped} skipped (duplicate).`:""}`);
+      const updates=[];
+      if(conflicts.length>0){
+        for(let i=0;i<conflicts.length;i++){
+          const decision=await new Promise(resolve=>{
+            dupResolveRef.current=resolve;
+            setDupQueue(conflicts);
+            setDupIndex(i);
+          });
+          if(decision==="update"){
+            const {existing,incoming}=conflicts[i];
+            const merged={...existing,...incoming,id:existing.id,contactLog:existing.contactLog,archived:existing.archived,archiveReason:existing.archiveReason,archiveDate:existing.archiveDate};
+            updates.push(merged);
+          }
+        }
+        setDupQueue([]);dupResolveRef.current=null;
+      }
+      if(toSave.length>0){
+        setLeads(prev=>[...toSave,...prev]);
+        await callScript("POST",{action:"bulk_upsert",leads:toSave.map(l=>({...l,contactLog:JSON.stringify(l.contactLog)}))});
+        const byPerson={};toSave.forEach(l=>{if(l["Assigned to"]){(byPerson[l["Assigned to"]]||(byPerson[l["Assigned to"]]=[]) ).push(l);}});
+        for(const[p,pL]of Object.entries(byPerson))await sendNotification(p,`📋 ${pL.length} new lead${pL.length>1?"s":""} assigned to you:\n${pL.map(l=>`• ${l["Name"]}`).join("\n")}`);
+      }
+      if(updates.length>0){
+        setLeads(prev=>prev.map(l=>{const u=updates.find(u=>u.id===l.id);return u||l;}));
+        await callScript("POST",{action:"bulk_upsert",leads:updates.map(l=>({...l,contactLog:JSON.stringify(l.contactLog||[])}))});
+      }
+      const skipped=conflicts.length-updates.length;
+      showToast(`Uploaded ${toSave.length} new lead${toSave.length!==1?"s":""}.${updates.length?` ${updates.length} updated.":""}${skipped?` ${skipped} skipped.":""}`);
     }catch(e){alert("Upload error: "+e.message);}
     setUploading(false);
   };
@@ -917,6 +991,7 @@ function App(){
       </div>
 
       {selectedLead&&<LeadProfile lead={selectedLead} onClose={()=>setSelectedLead(null)} onUpdate={updateLead} onArchive={archiveLead} onMoveToContacts={moveLeadToContacts} onDelete={deleteLead}/>}
+      {dupQueue.length>0&&dupResolveRef.current&&<DuplicateModal conflict={dupQueue[dupIndex]} index={dupIndex+1} total={dupQueue.length} onUpdate={()=>dupResolveRef.current("update")} onSkip={()=>dupResolveRef.current("skip")}/>}
       {selectedContact&&<ContactProfile contact={selectedContact} onClose={()=>setSelectedContact(null)} onUpdate={updateContact} onMoveToLeads={moveContactToLeads} onArchiveContact={archiveContact}/>}
       {selectedArchived&&<ArchivedItemProfile item={selectedArchived} onClose={()=>setSelectedArchived(null)} onRestore={restoreFromArchive}/>}
       {showLeadForm&&<LeadForm onSave={addLead} onCancel={()=>setShowLeadForm(false)}/>}
