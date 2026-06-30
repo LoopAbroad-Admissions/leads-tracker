@@ -72,7 +72,7 @@ function daysLate(fu){const d=parseDate(fu),t=new Date();t.setHours(0,0,0,0);d.s
 function isFuture(lead){if(!lead.followUp)return false;const d=parseDate(lead.followUp),t=new Date();t.setHours(0,0,0,0);d.setHours(0,0,0,0);return(d-t)/86400000>14;}
 function needsReplyFlag(lead){if(!lead.contactLog||lead.contactLog.length===0)return false;const last=lead.contactLog[lead.contactLog.length-1];if(last.replied==="Yes")return false;const sent=parseDate(last.date),today=new Date();today.setHours(0,0,0,0);sent.setHours(0,0,0,0);return(today-sent)/86400000>=2;}
 function parseLog(raw){if(!raw)return[];if(Array.isArray(raw))return raw;try{return JSON.parse(raw);}catch{return[];}}
-async function callScript(method,payload){try{if(method==="GET"){const r=await fetch(`${APPS_SCRIPT_URL}?${new URLSearchParams(payload)}`);return await r.json();}await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});return{success:true};}catch(e){console.error(e);return{error:e.message};}}
+async function callScript(method,payload){try{if(method==="GET"){const controller=new AbortController();const tid=setTimeout(()=>controller.abort(),45000);const r=await fetch(`${APPS_SCRIPT_URL}?${new URLSearchParams(payload)}`,{signal:controller.signal});clearTimeout(tid);return await r.json();}await fetch(APPS_SCRIPT_URL,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify(payload)});return{success:true};}catch(e){console.error(e);return{error:e.message};}}
 async function saveLead(lead){await callScript("POST",{action:"upsert",lead});}
 async function sendNotification(person,text){const url=WEBHOOKS[person];if(!url)return;try{await fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/json"},body:JSON.stringify({text})});}catch(e){console.error("Notification error:",e);}}
 
@@ -730,23 +730,28 @@ function App(){
   const [showContactForm,setShowContactForm]=React.useState(false);
   const [uploading,setUploading]=React.useState(false);
   const [loading,setLoading]=React.useState(false);
+  const [loadError,setLoadError]=React.useState(false);
   const [toast,setToast]=React.useState("");
 
   const showToast=msg=>{setToast(msg);setTimeout(()=>setToast(""),3500);};
 
-  React.useEffect(()=>{
+  const loadData=React.useCallback(()=>{
     if(!role)return;
-    setLoading(true);
+    setLoading(true);setLoadError(false);
     callScript("GET",{action:"read_filing_cabinet"}).then(data=>{
       if(Array.isArray(data)){
         const fixBools=r=>({...r,archived:r.archived===true||r.archived==="true",contactLog:parseLog(r.contactLog)});
         const ls=data.filter(r=>r._table!=="contacts").map(fixBools);
         const cs=data.filter(r=>r._table==="contacts").map(fixBools);
-        setLeads(ls);setContacts(cs);
+        setLeads(ls);setContacts(cs);setLoadError(false);
+      } else {
+        setLoadError(true);
       }
       setLoading(false);
-    });
+    }).catch(()=>{setLoadError(true);setLoading(false);});
   },[role]);
+
+  React.useEffect(()=>{loadData();},[loadData]);
 
   const activeLeads=leads.filter(l=>!l.archived);
   const archivedLeads=leads.filter(l=>l.archived);
@@ -900,8 +905,9 @@ function App(){
         </div>
       </div>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {loading&&<div className="text-center text-gray-400 text-sm py-12">Loading…</div>}
-        {!loading&&<>
+        {loading&&<div className="text-center text-gray-400 text-sm py-12"><div className="mb-2">Loading your leads… (this can take up to 30 seconds on first load)</div><div className="text-xs text-gray-300">Please wait — don’t refresh</div></div>}
+        {!loading&&loadError&&<div className="text-center py-12"><div className="text-red-400 text-sm mb-3">⚠️ Couldn’t connect to the database. This usually means Google’s server is warming up.</div><button onClick={loadData} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Try Again</button></div>}
+        {!loading&&!loadError&&<>
           {tab==="actions"  &&<ActionsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)}/>}
           {tab==="leads"    &&<CurrentLeadsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)} onUpload={uploadNewLeads} uploading={uploading}/>}
           {tab==="contacts" &&<ContactsTab contacts={activeContacts} onSelectContact={setSelectedContact} onAddContact={()=>setShowContactForm(true)} onUpload={uploadContacts} uploading={uploading}/>}
