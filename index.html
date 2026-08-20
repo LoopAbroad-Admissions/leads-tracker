@@ -254,7 +254,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
     await saveAll({contactLog:log});setEditingEntryId(null);
   };
   const deleteLogEntry=async(entryId)=>{
-    if('window.confirm("Delete this contact log entry?"))return;
+    if(!window.confirm("Delete this contact log entry?"))return;
     const log=(l.contactLog||[]).filter(e=>e.id!==entryId);
     await saveAll({contactLog:log});
   };
