@@ -29,7 +29,7 @@ const STAGES        = ["New","Contacted","Talking","Ready","Other"];
 const SCHOOL_TYPES  = ["High School","College","Vet Tech","Vet School"];
 const CONTACT_IS    = ["Parent","Student"];
 const CONTACT_IS_CONTACTS = ["Parent","Student","Current Vet","Other"];
-const SOURCES     = ["Phone Call","Club Meeting","Email","Go Abroad","Instagram","Message Us","Other","Scheduled Meeting","Social Media","Text","WorldStrides"];
+const SOURCES       = ["Phone Call","Club Meeting","Email","Go Abroad","Instagram","Message Us","Other","Scheduled Meeting","Social Media","Text","WorldStrides"];
 const AREAS         = ["Big Cats","CELA","Conservation","Equine","Large Animal","Marine","Research","Shelter Med","Wildlife","Zoo","Vet Tech"];
 const PROGRAMS      = ["Australia","Bali","Belize","CAVSA","Costa Rica","Egypt","GVSA","Internship","Online","Panama","South Africa","Thailand","TVSA","Tulum","USA","UK Liverpool"];
 const LENGTHS       = ["2 Weeks","4 Weeks","6 Weeks","12 Weeks"];
@@ -57,7 +57,7 @@ function parseDate(val){
   if(iso)return new Date(+iso[1],+iso[2]-1,+iso[3]);
   const ts=Date.parse(str);return isNaN(ts)?new Date():new Date(ts);
 }
-function formatDate(dateObj)if(!dateObj)return"";const d=new Date(dateObj);return`${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
+function formatDate(dateObj){if(!dateObj)return"";const d=new Date(dateObj);return`${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
 function formatDateLong(str){if(!str)return"";const d=parseDate(str);return d.toLocaleDateString("en-US",{month:"short",day:"numeric",year:"numeric"});}
 function safeDate(val){if(val===null||val===undefined||val==="")return"";return formatDate(parseDate(val));}
 function defaultFollowUp(fromStr){const base=fromStr?parseDate(fromStr):new Date();return formatDate(addBusinessDays(base,3));}
@@ -294,7 +294,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                 </select>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">Assigned to</label>
-                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
+                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]}||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
                   <option value="">—</option>{TEAM.map(t=><option key={t}>{t}</option>)}
                 </select>
               </div>
@@ -310,7 +310,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                   :<input value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>}
               </div>
             ))}
-            <div><label className="text-xs text-gray-400 block mb-2">Area of Interest</label><MultiSelect options={AREAS} value={l["Area of Interest"]||""} onChange={v=>set("Area of Interest",v)}/></div>
+            <div><label className="text-xs text-gray-400 block mb-2">Area of Interest</label><MultiSelect options={AREAS}�value={l["Area of Interest"]||""} onChange={v=>set("Area of Interest",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Programs Interested In</label><MultiSelect options={PROGRAMS} value={l["Programs Interested In"]||""} onChange={v=>set("Programs Interested In",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Program Length</label><MultiSelect options={LENGTHS} value={l["Program Length"]||""} onChange={v=>set("Program Length",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Time of Travel</label><MultiSelect options={TRAVELS} value={l["Time of Travel"]||""} onChange={v=>set("Time of Travel",v)}/></div>
@@ -337,7 +337,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             </div>
             <div className="space-y-2 mb-4 max-h-72 overflow-y-auto pr-1">
               {contactCount===0&&<div className="text-xs text-gray-400 text-center py-4">No contacts logged yet.</div>}
-              {(l.contactLog||[]).map((entry,i)=>(
+              {l.contactLog||[]).map((entry,i)=>(
                 <div key={entry.id||i} className="flex gap-2">
                   <div className="flex flex-col items-center">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${entry.replied==="Yes"?"bg-green-100 text-green-700":"bg-gray-100 text-gray-500"}`}>{getHowIcon(entry.how)}</div>
@@ -351,13 +351,13 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                         <button onClick={()=>{setEditingEntryId(entry.id);setEditForm({...entry});}} title="Edit entry" className="text-gray-300 hover:text-indigo-400 text-xs leading-none px-1">&#9998;</button>
                         <button onClick={()=>deleteLogEntry(entry.id)} title="Delete entry" className="text-gray-300 hover:text-red-400 text-xs leading-none">&#10005;</button>
                       </div>
-                    </div>
+                   </div>
                     {editingEntryId===entry.id
                       ?<div className="space-y-1.5 bg-gray-50 rounded p-2 mb-1">
                         <div className="grid grid-cols-2 gap-1">
                           <div><label className="text-xs text-gray-400 block">Date</label><input value={editForm.date||""} onChange={e=>setEditForm(f=>({...f,date:e.target.value}))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white"/></div>
                           <div><label className="text-xs text-gray-400 block">Who</label><select value={editForm.who||""} onChange={e=>setEditForm(f=>({...f,who:e.target.value}))} className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white"><option value="">Select...</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
-                       </div>
+                        </div>
                         <div className="flex gap-1 flex-wrap">{HOW_OPTIONS.map(h=><button key={h} type="button" onClick={()=>setEditForm(f=>({...f,how:h}))} className={`text-xs px-2 py-0.5 rounded border ${editForm.how===h?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{h}</button>)}</div>
                         <textarea value={editForm.notes||""} onChange={e=>setEditForm(f=>({...f,notes:e.target.value}))} placeholder="Notes..." className="w-full border border-gray-200 rounded px-2 py-1 text-xs resize-none h-14 bg-white"/>
                         <div className="flex gap-2"><button onClick={()=>saveEditedEntry(entry.id)} className="text-xs px-2 py-0.5 bg-indigo-600 text-white rounded">Save</button><button onClick={()=>setEditingEntryId(null)} className="text-xs text-gray-400">Cancel</button></div>
@@ -382,7 +382,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                 <div><label className="text-xs text-gray-400 block mb-1">Who</label><select value={logForm.who} onChange={e=>setLogForm(f=>({...f,who:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"><option value="">Select…</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">How</label>
-                <div className="flex gap-1 flex-wrap">{HOW_OPTIONS.map(h=><button key={h} type="button" onClick={()=>setLogForm(f=>({...f,how:h}))} className={`text-xs px-2 py-1 rounded border ${logForm.how===h?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{h?}</button>)}</div>
+                <div className="flex gap-1 flex-wrap">{HOW_OPTIONS.map(h=><button key={h} type="button" onClick={()=>setLogForm(f=>({...f,how:h}))} className={`text-xs px-2 py-1 rounded border ${logForm.how===h?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{h}</button>)}</div>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">Notes</label><textarea value={logForm.notes} onChange={e=>setLogForm(f=>({...f,notes:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs resize-none h-14"/></div>
               <div><label className="text-xs text-gray-400 block mb-1">Did they reply?</label>
@@ -695,29 +695,101 @@ function AlumniTab({leads,onSelectLead,onSelectArchived}){
   );
 }
 
-// ─── ARCHIVE TAB ───────────────────────────────────────────────────────────────
+// ─── ARCHIVE TAB ──────────────────────────────────────────────────────────────
 function ArchiveTab({leads,contacts,onSelectArchived}){
   const [search,setSearch]=React.useState("");
   const [reasonF,setReasonF]=React.useState("All");
   const all=[...leads,...(contacts||[])];
-  const filtered=all.filter(item=>{const q=search.toLowerCase();const name=(item.Name||item["Name"]||"").toLowerCase();const email=(item.Email||item["Email"]||"").toLowerCase();return(!q||name.includes(q)||email.includes(q))&&(reasonF<��������ѕ���ɍ��ٕI��ͽ��������ɕ�ͽ�������(��ɕ��ɸ�(�������(�������؁�����9���􉵈�āѕ�е��͔����е͕�������ѕ�е�Ʌ������ɍ��ٔ𽑥��(�������؁�����9����ѕ�е�́ѕ�е�Ʌ��������Ј�
-��ٕ�ѕ�����ɐ����̰���������́ѡ�Ёݕ�Ёͥ���и�
-��������ɽ܁Ѽ�٥�܁�ȁɕ�ѽɔ�𽑥��(�������؁�����9���􉙱�������ȁ���Ј�(�����������Ёم�Ք��͕�ɍ�􁽹
-���������͕�M��ɍ����хɝ�йم�Ք��������������M��ɍ��������ȁ��������������9���􉙱��ā��ɑ�ȁ��ɑ�ȵ�Ʌ�����ɽչ���������́��ȁѕ�еʹ���(���������͕���Ёم�Ք��ɕ�ͽ�􁽹
-���������͕�I��ͽ����хɝ�йم�Ք�􁍱���9���􉉽ɑ�ȁ��ɑ�ȵ�Ʌ�����ɽչ���������́��ȁѕ�еʹ����ѥ�������ѥ����I
-!Y}IM=9L����������ѥ����������������ѥ������͕�����(������𽑥��(�������؁�����9���􉉜�ݡ�є���ɑ�ȁ��ɑ�ȵ�Ʌ�����ɽչ����ᰁ�ٕə��ܵ��������(���������؁�����9����ɥ���ɥ�����̵lř�|�����|����t�����́��Ё��ȸԁ����Ʌ������ɑ�ȵ����ɑ�ȵ�Ʌ������(�����������؁�����9����ѕ�е�́ѕ�е�Ʌ���������ɍ�͔��Ʌ������ݥ��Ȉ�9���𽑥��(�����������؁�����9����ѕ�е�́ѕ�е�Ʌ���������ɍ�͔��Ʌ������ݥ��Ȉ�I��ͽ�𽑥��(�����������؁�����9����ѕ�е�́ѕ�е�Ʌ���������ɍ�͔��Ʌ������ݥ��Ȉ�ɍ��ٕ�𽑥��(��������𽑥��(��������홥�ѕɕ������Ѡ�������؁�����9����ѕ�е���ѕȁѕ�е�Ʌ�����ѕ�еʹ������9�ѡ�����ɍ��ٕ���и𽑥���(��������홥�ѕɕ��������ѕ�������(�����������؁������ѕ����􁽹
-�����젤����M�����ɍ��ٕ���ѕ��􁍱���9����큝ɥ���ɥ�����̵lř�|�����|����t�����́��Ё��́���ͽȵ����ѕȁ��ٕ�鉜��Ʌ����������������ٕ���������������񙥱ѕɕ������Ѡ������ɑ�ȵ����ɑ�ȵ�Ʌ�����舉����(���������������(���������������؁�����9����ѕ�еʹ����е����մ�ѕ�е�Ʌ�����������ѕ�̵���ѕȁ����ĸԈ���ѕ��9�����ѕ�l�9����u���ѕ��ѕ���Ʌ��ɔ���Q���	�����ѕ�����ѕ��ѕ���Ʌ��ɕ����𽑥��(���������������؁�����9����ѕ�е�́ѕ�е�Ʌ��������ѕ��������ѕ�l������u���ѕ��}х�����􉍽�х��̈���
-܁
-��х�Ј舉�𽑥��(������������𽑥��(�������������؁�����9���􉙱����ѕ�̵���ѕȈ��Q�����������ѕ���ɍ��ٕI��ͽ�����P�􁍽������ѕ���ɍ��ٕI��ͽ����
-��ٕ�ѕ�����ɕ����ѕ���ɍ��ٕI��ͽ����9�Ё��ѕɕ�ѕ����ɕ��艝Ʌ����𽑥��(�������������؁�����9����ѕ�е�́ѕ�е�Ʌ�����������ѕ�̵���ѕȈ��ͅ���є��ѕ���ɍ��ٕ�є��𽑥��(����������𽑥��(�����������(������𽑥��(�������؁�����9����ѕ�е�́ѕ�е�Ʌ�����ѕ�еɥ��Ё�дȈ�홥�ѕɕ������ѡ�ɍ��ٕ�𽑥��(����𽑥��(����)�((����R�R�R �UA1%
-Q�5=0��R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R )�չ�ѥ���������ѕ5�����퍽�����б�����ѽх����U���є���M������(������Ё���ѥ����������������������(������ЁM!=]}%1L�l��ͥ�����Ѽ���Aɽ�Ʌ�́%�ѕɕ�ѕ��%����ɕ�����%�ѕɕ�Ј��Q�������QɅٕ����M������9������A�������M��ɍ��t�(������Ё��������M!=]}%1L����ѕȡ�����������m�t����������m�t������ѥ��m�t��(������Ёͅ���M!=]}%1L����ѕȡ�����������m�t����������m�t������ѥ��m�t��(��ɕ��ɸ�(�����؁�����9���􉙥ᕐ���͕д������������������������������ѕ�̵���ѕȁ���ѥ�䵍��ѕȁ������Ј�(�������؁�����9���􉉜�ݡ�є�ɽչ����ᰁ͡���ܴ�ᰁܵ�ձ�����ܵ�����؈�(���������؁�����9���􉙱����ѕ�̵���ѕȁ���ѥ�䵉��ݕ������Ј�(�������������(�������������؁�����9����ѕ�е�́ѕ�е�Ʌ����������Ԉ�������є���������չ���P�������􁽘��ѽх��𽑥��(�������������؁�����9����ѕ�е��͔����е�����ѕ�е�Ʌ���������ѥ��l�9����u����ѥ���9����𽑥��(�������������؁�����9����ѕ�е�́ѕ�е�Ʌ���������ѥ��l������u����ѥ��������𽑥��(����������𽑥��(�����������؁�����9����ѕ�е�́���啱��ܴ�����ɑ�ȁ��ɑ�ȵ啱��ܴ����ѕ�е啱��ܴ������ȁ��āɽչ���������ɕ��䁥���Ʌ����𽑥��(��������𽑥��(��������퍡����������Ѡ�����(�����������؁�����9���􉵈�Ј�(�������������؁�����9����ѕ�е�́���е͕�������ѕ�е��������������Ȉ��j��
-������������̀���܁م�Ք��H����ɕ�Ф𽑥��(�������������؁�����9�����������ĸԈ�(��������������퍡��������������(�����������������؁�����􁍱���9����ɥ���ɥ�����̵l�����|ř�|ř�t�����ȁѕ�е�́�ѕ�̵�х�Ј�(�����������������������������9����ѕ�е�Ʌ��������������(�����������������������������9����ѕ�е��������������е����մ��������������ɽչ������ĸԁ����Ԉ����������m�u����P��������(�����������������������������9����ѕ�е�Ʌ���������Ʌ����ɽչ������ĸԁ����Ԉ����ѥ��m�u����P��������(����������������𽑥��(�����������������(������������𽑥��(����������𽑥��(����������(��������퍡����������Ѡ�������؁�����9����ѕ�е�́ѕ�е�Ʌ��������Ё����Ʌ����ɽչ���������̈�9��������������́��ѕ�ѕ���P�ѡ��͡��Ё��ф���э��́ݡ�Н́��ɕ��䁥��ѡ���Ʌ���ȸ𽑥���(���������ͅ�������Ѡ�����(�����������؁�����9���􉵈�Ԉ�(�������������؁�����9����ѕ�е�́���е͕�������ѕ�е�Ʌ��������Ȉ�U��������𽑥��(�������������؁�����9���􉙱��������Ʌ������Ĉ��ͅ���������������������􁍱���9����ѕ�е�́����Ʌ�����ѕ�е�Ʌ�������ȁ����ԁɽչ�����������ѥ��m�u���������𽑥��(����������𽑥��(����������(���������؁�����9����ѕ�е�́ѕ�е�Ʌ��������Ё�х�����
-��х�Ё�����������ѽ��ݥ�����݅�́����ɕ͕�ٕ��𽑥��(���������؁�����9���􉙱�������̈�(�������������ѽ����
-��������M���􁍱���9���􉙱��ā��ȸԁѕ�еʹ���ɑ�ȁ��ɑ�ȵ�Ʌ�����ɽչ�������ѕ�е�Ʌ�������ٕ�鉜��Ʌ�����-�������ѥ�����ѽ��(�������������ѽ����
-��������U���ѕ􁍱���9���􉙱��ā��ȸԁѕ�еʹ���������������ѕ�еݡ�є�ɽչ����������е����մ���ٕ�鉜�������������U���є�ݥѠ���܁�������ѽ��(��������𽑥��(������𽑥��(����𽑥��(����)�((����R�R�R �1=%8��R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R )�չ�ѥ���1��������1������퍽��Ёm�ܱ͕�A�t�I���й�͕Mхє����퍽��Ёm��ȱ͕���t�I���й�͕Mхє����퍽��Ё��ѕ�����������������AMM]=IL����������1��������������ɕ��ɸ����������AMM]=IL�ѕ������1������ѕ�����ɕ��ɸ��͕��Ƞ�%����ɕ�Ё����ݽɐ������ɕ��ɸ��؁�����9���􉵥����͍ɕ���������ѕ�̵���ѕȁ���ѥ�䵍��ѕȁ����Ʌ������؁�����9���􉉜�ݡ�є�ɽչ�����ᰁ͡���ܵ�������ܴ�����؁�����9����ѕ�е������е�����ѕ�е�Ʌ��������Ĉ�1�����ɽ��𽑥���؁�����9����ѕ�еʹ�ѕ�е�Ʌ��������؈�1���́QɅ����𽑥�����Ё���������ݽɐ��م�Ք����􁽹
-���������͕�Aܡ��хɝ�йم�Ք�􁽹-���ݸ�������������ѕȈ����ѕ��Р���������������ѕȁ����ݽɐ�������9����ܵ�ձ����ɑ�ȁ��ɑ�ȵ�Ʌ�����ɽչ����ᰁ��Ё��́ѕ�еʹ����̈����Ș��؁�����9����ѕ�е�́ѕ�еɕ���������Ȉ�����𽑥������ѽ����
-�������ѕ���􁍱���9����ܵ�ձ����́��������������ѕ�еݡ�є�ɽչ����ᰁѕ�еʹ����е����մ���ٕ�鉜�������������M���������ѽ��𽑥��𽑥�����((����R�R�R �A@��R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R�R )�չ�ѥ��������(������Ёmɽ���͕�I���t�I���й�͕Mхє��ձ���(������Ёmх��͕�Q��t�I���й�͕Mхє����ѥ��̈��(������Ёm����̱͕�1����t�I���й�͕Mхє�mt��(������Ёm���х��̱͕�
-��х���t�I���й�͕Mхє�mt��(������Ёm͕���ѕ�1����͕�M����ѕ�1���t�I���йtate(null);
+  const filtered=all.filter(item=>{const q=search.toLowerCase();const name=(item.Name||item["Name"]||"").toLowerCase();const email=(item.Email||item["Email"]||"").toLowerCase();return(!q||name.includes(q)||email.includes(q))&&(reasonF==="All"||(item.archiveReason||""===reasonF));});
+  return(
+    <div>
+      <div className="mb-1 text-base font-semibold text-gray-800">Archive</div>
+      <div className="text-xs text-gray-400 mb-4">Converted, hard no's, and leads that went silent. Click any row to view or restore.</div>
+      <div className="flex gap-2 mb-4">
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <select value={reasonF} onChange={e=>setReasonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{ARCHVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+      </div>
+      <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
+        <div className="grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Name</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Reason</div>
+          <div className="text-xs text-gray-400 uppercase tracking-wider">Archived</div>
+        </div>
+        {filtered.length===0&&<div className="text-center text-gray-400 text-sm py-8">Nothing archived yet.</div>}
+        {filtered.map((item,i)=>(
+          <div key={item.id} onClick={()=>onSelectArchived(item)} className={`grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 opacity-80 hover:opacity-100 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
+            <div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{item.Name||item["Name"]}{item.temperature&&<TempBadge temp={item.temperature}/>}</div>
+              <div className="text-xs text-gray-400">{item.Email||item["Email"]}{item._table==="contacts"?" · Contact":""}</div>
+            </div>
+            <div className="flex items-center"><Tag label={item.archiveReason||"—"} color={item.archiveReason==="Converted"?"green":item.archiveReason==="Not interested"?"red":"gray"}/></div>
+            <div className="text-xs text-gray-400 flex items-center">{safeDate(item.archiveDate)}</div>
+          </div>
+        ))}
+      </div>
+      <div className="text-xs text-gray-400 text-right mt-2">{filtered.length} archived</div>
+    </div>
+  );
+}
+
+// ─── DUPLICATE MODAL ──────────────────────────────────────────────────────────
+function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
+  const {existing,incoming}=conflict;
+  const SHOW_FIELDS=["Assigned to","Programs Interested In","Area of Interest","Time of Travel","School Name","Phone","Source"];
+  const changed=SHOW_FIELDS.filter(f=>incoming[f]&&incoming[f]!==existing[f]);
+  const same=SHOW_FIELDS.filter(f=>incoming[f]&&incoming[f]===existing[f]);
+  return(
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <div className="text-xs text-gray-400 mb-0.5">Duplicate email found — {index} of {total}</div>
+            <div className="text-base font-bold text-gray-900">{existing["Name"]||existing.Name}</div>
+            <div className="text-xs text-gray-400">{existing["Email"]||existing.Email}</div>
+          </div>
+          <div className="text-xs bg-yellow-50 border border-yellow-200 text-yellow-700 px-2 py-1 rounded-lg">Already in tracker</div>
+        </div>
+        {changed.length>0&&(
+          <div className="mb-4">
+            <div className="text-xs font-semibold text-indigo-600 mb-2">⚡ Changed fields (new value → current)</div>
+            <div className="space-y-1.5">
+              {changed.map(f=>(
+                <div key={f} className="grid grid-cols-[100px_1fr_1fr] gap-2 text-xs items-start">
+                  <span className="text-gray-400">{f}</span>
+                  <span className="text-indigo-700 font-medium bg-indigo-50 rounded px-1.5 py-0.5">{incoming[f]||"—"}</span>
+                  <span className="text-gray-400 bg-gray-50 rounded px-1.5 py-0.5">{existing[f]||"—"}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+        {changed.length===0&&<div className="text-xs text-gray-400 mb-4 bg-gray-50 rounded-lg p-3">No field changes detected — the sheet data matches what's already in the tracker.</div>}
+        {same.length>0&&(
+          <div className="mb-5">
+            <div className="text-xs font-semibold text-gray-400 mb-2">Unchanged</div>
+            <div className="flex flex-wrap gap-1">{same.map(f=><span key={f} className="text-xs bg-gray-100 text-gray-500 px-2 py-0.5 rounded">{f}: {existing[f]}</span>)}</div>
+          </div>
+        )}
+        <div className="text-xs text-gray-400 mb-4 italic">Contact log and history will always be preserved.</div>
+        <div className="flex gap-3">
+          <button onClick={onSkip} className="flex-1 py-2.5 text-sm border border-gray-200 rounded-lg text-gray-500 hover:bg-gray-50">Keep existing</button>
+          <button onClick={onUpdate} className="flex-1 py-2.5 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">Update with new info</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ─── LOGIN ─────────────────────────────────────────────────────────────────────
+function Login({onLogin}){const [pw,setPw]=React.useState("");const [err,setErr]=React.useState("");const attempt=()=>{if(pw===PASSWORDS.admin){onLogin("admin");return;}if(pw===PASSWORDS.team){onLogin("team");return;}setErr("Incorrect password.");};return(<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="bg-white rounded-2xl shadow-lg p-8 w-80"><div className="text-lg font-bold text-gray-800 mb-1">Loop Abroad</div><div className="text-sm text-gray-400 mb-6">Leads Tracker</div><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder="Enter password" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-3"/>{err&&<div className="text-xs text-red-500 mb-2">{err}</div>}<button onClick={attempt} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">Sign in</button></div></div>);}
+
+// ─── APP ──────────────────────────────────────────────────────────────────────
+function App(){
+  const [role,setRole]=React.useState(null);
+  const [tab,setTab]=React.useState("actions");
+  const [leads,setLeads]=React.useState([]);
+  const [contacts,setContacts]=React.useState([]);
+  const [selectedLead,setSelectedLead]=React.useState(null);
   const [selectedContact,setSelectedContact]=React.useState(null);
   const [selectedArchived,setSelectedArchived]=React.useState(null);
   const [showLeadForm,setShowLeadForm]=React.useState(false);
@@ -862,7 +934,7 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
         if(!(row["Name"]||"").trim())continue;
         const email=(row["Email"]||"").toLowerCase().trim();
         if(email&&existingEmails.has(email)){skipped++;continue;}
-        const contact={...row,id:generateId(),_table:"contacts",Date:safeDate(row["Date"]||row["Date Added"])||todayDate()};
+        const contact={...row,id:generateId(),_table:"contacts",Date:safeDate(row["Date"]||row["Date Added"])}|todayDate()};
         if(email)existingEmails.add(email);
         toSave.push(contact);added++;
       }
