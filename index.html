@@ -294,7 +294,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                 </select>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">Assigned to</label>
-                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]}||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
+                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
                   <option value="">—</option>{TEAM.map(t=><option key={t}>{t}</option>)}
                 </select>
               </div>
@@ -337,7 +337,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             </div>
             <div className="space-y-2 mb-4 max-h-72 overflow-y-auto pr-1">
               {contactCount===0&&<div className="text-xs text-gray-400 text-center py-4">No contacts logged yet.</div>}
-              {l.contactLog||[]).map((entry,i)=>(
+              {(l.contactLog||[]).map((entry,i)=>(
                 <div key={entry.id||i} className="flex gap-2">
                   <div className="flex flex-col items-center">
                     <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs flex-shrink-0 ${entry.replied==="Yes"?"bg-green-100 text-green-700":"bg-gray-100 text-gray-500"}`}>{getHowIcon(entry.how)}</div>
@@ -351,7 +351,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                         <button onClick={()=>{setEditingEntryId(entry.id);setEditForm({...entry});}} title="Edit entry" className="text-gray-300 hover:text-indigo-400 text-xs leading-none px-1">&#9998;</button>
                         <button onClick={()=>deleteLogEntry(entry.id)} title="Delete entry" className="text-gray-300 hover:text-red-400 text-xs leading-none">&#10005;</button>
                       </div>
-                   </div>
+                    </div>
                     {editingEntryId===entry.id
                       ?<div className="space-y-1.5 bg-gray-50 rounded p-2 mb-1">
                         <div className="grid grid-cols-2 gap-1">
@@ -682,7 +682,7 @@ function AlumniTab({leads,onSelectLead,onSelectArchived}){
           <div key={l.id} onClick={()=>l.archived?onSelectArchived(l):onSelectLead(l)} className={`grid grid-cols-[1fr_120px_80px_100px] gap-3 px-4 py-3 cursor-pointer hover:bg-amber-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div>
               <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}</div>
-              <div className="text-xs text-gray-400">{l["Programs Interested In"]}||"—"}</div>
+              <div className="text-xs text-gray-400">{l["Programs Interested In"]||"—"}</div>
             </div>
             <div className="text-sm text-gray-600 flex items-center">{l["Alumni Program"]||"—"}</div>
             <div className="text-sm text-gray-500 flex items-center">{l["Alumni Year"]||"—"}</div>
@@ -707,7 +707,7 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
       <div className="text-xs text-gray-400 mb-4">Converted, hard no's, and leads that went silent. Click any row to view or restore.</div>
       <div className="flex gap-2 mb-4">
         <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
-        <select value={reasonF} onChange={e=>setReasonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{ARCHVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+        <select value={reasonF} onChange={e=>setReasonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-2.5 bg-gray-50 border-b border-gray-100">
@@ -934,7 +934,7 @@ function App(){
         if(!(row["Name"]||"").trim())continue;
         const email=(row["Email"]||"").toLowerCase().trim();
         if(email&&existingEmails.has(email)){skipped++;continue;}
-        const contact={...row,id:generateId(),_table:"contacts",Date:safeDate(row["Date"]||row["Date Added"])}|todayDate()};
+        const contact={...row,id:generateId(),_table:"contacts",Date:safeDate(row["Date"]||row["Date Added"])||todayDate()};
         if(email)existingEmails.add(email);
         toSave.push(contact);added++;
       }
