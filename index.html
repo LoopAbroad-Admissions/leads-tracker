@@ -310,7 +310,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                   :<input value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>}
               </div>
             ))}
-            <div><label className="text-xs text-gray-400 block mb-2">Area of Interest</label><MultiSelect options={AREAS}�value={l["Area of Interest"]||""} onChange={v=>set("Area of Interest",v)}/></div>
+            <div><label className="text-xs text-gray-400 block mb-2">Area of Interest</label><MultiSelect options={AREAS} value={l["Area of Interest"]||""} onChange={v=>set("Area of Interest",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Programs Interested In</label><MultiSelect options={PROGRAMS} value={l["Programs Interested In"]||""} onChange={v=>set("Programs Interested In",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Program Length</label><MultiSelect options={LENGTHS} value={l["Program Length"]||""} onChange={v=>set("Program Length",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Time of Travel</label><MultiSelect options={TRAVELS} value={l["Time of Travel"]||""} onChange={v=>set("Time of Travel",v)}/></div>
