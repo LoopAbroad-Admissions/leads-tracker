@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Loop Abroad â Leads Tracker</title>
+<title>Loop Abroad — Leads Tracker</title>
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone@7.23.5/babel.min.js"></script>
@@ -14,7 +14,7 @@
 <div id="root"></div>
 <script type="text/babel">
 
-// âââ CONFIG âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CONFIG ───────────────────────────────────────────────────────────────────
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyuORLQP8TWNbFrZHm1q_tFisGHg014lIAkldrYgV00A3EUvI4oQdGO_IgAerriunBu/exec";
 const NEW_LEADS_GID   = "1240221106";
 const CONTACTS_GID    = "1904560885";
@@ -40,7 +40,7 @@ const ARCHIVE_REASONS = ["Converted","No reply","Not interested","Other"];
 
 // Source is used as-is for the initial contact log entry label
 
-// âââ HELPERS ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── HELPERS ──────────────────────────────────────────────────────────────────
 function addBusinessDays(date,days){let d=new Date(date);let added=0;while(added<days){d.setDate(d.getDate()+1);const dow=d.getDay();if(dow!==0&&dow!==6)added++;}return d;}
 function todayDate(){const d=new Date();return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(-2)}`;}
 function parseDate(val){
@@ -102,7 +102,7 @@ function normalizeRow(row){
 function exportCSV(data,filename){const headers=["Name","Email","Phone","Time of Travel","Area of Interest","Programs Interested In","Source","School Name","School Type","Contact is a","Program Length","Assigned to","Stage","Temperature","Date Added","Last Contacted","Last Contact Method"];const rows=data.map(l=>{const log=Array.isArray(l.contactLog)?l.contactLog:[];const lastEntry=log.length>0?log[log.length-1]:null;const lastContacted=lastEntry?lastEntry.date||"":"";const lastHow=lastEntry?lastEntry.how||"":"";return headers.map(h=>{if(h==="Last Contacted")return`"${String(lastContacted).replace(/"/g,'""')}"`;if(h==="Last Contact Method")return`"${String(lastHow).replace(/"/g,'""')}"`;return`"${String(l[h]||"").replace(/"/g,'""')}"`;}).join(",");});const counts={};data.forEach(l=>{const s=l["Source"]||"Unknown";counts[s]=(counts[s]||0)+1;});rows.push("","Source Report");Object.entries(counts).forEach(([s,c])=>rows.push(`"${s}","${c}"`));const blob=new Blob([[headers.join(","),...rows].join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=filename;a.click();}
 function exportContactsCSV(data){const headers=["Name","Email","Phone","Type","Program","Contact is a","Notes","Date"];const rows=data.map(c=>headers.map(h=>`"${String(c[h]||"").replace(/"/g,'""')}"`).join(","));const blob=new Blob([[headers.join(","),...rows].join("\n")],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="contacts.csv";a.click();}
 
-// âââ SMALL COMPONENTS âââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── SMALL COMPONENTS ─────────────────────────────────────────────────────────
 function MultiSelect({options,value,onChange}){const selected=(value||"").split(",").map(s=>s.trim()).filter(Boolean);const toggle=opt=>{const n=selected.includes(opt)?selected.filter(s=>s!==opt):[...selected,opt];onChange(n.join(", "));};return <div className="flex flex-wrap gap-1">{options.map(opt=><button key={opt} type="button" onClick={()=>toggle(opt)} className={`text-xs px-2 py-1 rounded-full border transition-colors ${selected.includes(opt)?"bg-indigo-100 border-indigo-400 text-indigo-700 font-medium":"bg-white border-gray-200 text-gray-500 hover:border-gray-400"}`}>{opt}</button>)}</div>;}
 
 function Tag({label,color}){const C={blue:"bg-blue-50 text-blue-600 border-blue-200",yellow:"bg-yellow-50 text-yellow-700 border-yellow-200",gray:"bg-gray-100 text-gray-500 border-gray-200",green:"bg-green-50 text-green-600 border-green-200",red:"bg-red-50 text-red-600 border-red-200",purple:"bg-purple-50 text-purple-600 border-purple-200",orange:"bg-orange-50 text-orange-700 border-orange-200"};return <span className={`text-xs px-2 py-0.5 rounded-full border ${C[color]||C.gray}`}>{label}</span>;}
@@ -116,7 +116,7 @@ function TempBadge({temp}){
   return null;
 }
 
-// Temperature selector buttons (Hot / â / Cold)
+// Temperature selector buttons (Hot / — / Cold)
 function TempSelector({value,onChange}){
   return (
     <div className="flex gap-1">
@@ -137,7 +137,7 @@ function stageColor(s){return{New:"gray",Contacted:"orange",Talking:"blue",Ready
 
 function ContactDots({count}){const dots=Math.min(count,5);return <div className="flex items-center gap-1 flex-shrink-0">{[1,2,3,4,5].map(i=><div key={i} className={`w-2 h-2 rounded-full flex-shrink-0 ${i<=dots?"bg-gray-500":"bg-gray-200"}`}/>)}<span className="text-xs text-gray-400 ml-1 whitespace-nowrap">{count}</span></div>;}
 
-// âââ LEAD FORM ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── LEAD FORM ────────────────────────────────────────────────────────────────
 function LeadForm({initial,onSave,onCancel,title}){
   const blank={"Date Added":todayDate(),Name:"",Email:"",Phone:"",Source:"","Contact History":"","School Name":"","School Type":"","Contact is a":"","Area of Interest":"","Programs Interested In":"","Program Length":"","Time of Travel":"","Assigned to":"",temperature:"","Alumni Program":"","Alumni Year":""};
   const [form,setForm]=React.useState(initial||blank);
@@ -145,24 +145,24 @@ function LeadForm({initial,onSave,onCancel,title}){
   return(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-2xl max-h-[95vh] overflow-y-auto p-6">
-        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Lead"}</h2><button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl">â</button></div>
+        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Lead"}</h2><button onClick={onCancel} className="text-gray-400 hover:text-gray-600 text-xl">✕</button></div>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="text-xs text-gray-500 mb-1 block">Date Added</label><input value={form["Date Added"]} onChange={e=>set("Date Added",e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Assigned to *</label><select value={form["Assigned to"]} onChange={e=>set("Assigned to",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Assigned to *</label><select value={form["Assigned to"]} onChange={e=>set("Assigned to",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form["Name"]} onChange={e=>set("Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Email</label><input value={form["Email"]} onChange={e=>set("Email",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Phone</label><input value={form["Phone"]} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Source</label><select value={form["Source"]} onChange={e=>set("Source",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Source</label><select value={form["Source"]} onChange={e=>set("Source",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{SOURCES.map(s=><option key={s}>{s}</option>)}</select></div>
           <div><label className="text-xs text-gray-500 mb-1 block">School Name</label><input value={form["School Name"]} onChange={e=>set("School Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">School Type</label><select value={form["School Type"]} onChange={e=>set("School Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{SCHOOL_TYPES.map(s=><option key={s}>{s}</option>)}</select></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{CONTACT_IS.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">School Type</label><select value={form["School Type"]} onChange={e=>set("School Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{SCHOOL_TYPES.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_IS.map(s=><option key={s}>{s}</option>)}</select></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Lead Temperature</label><TempSelector value={form.temperature||""} onChange={v=>set("temperature",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Area of Interest</label><MultiSelect options={AREAS} value={form["Area of Interest"]} onChange={v=>set("Area of Interest",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Programs Interested In</label><MultiSelect options={PROGRAMS} value={form["Programs Interested In"]} onChange={v=>set("Programs Interested In",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Program Length</label><MultiSelect options={LENGTHS} value={form["Program Length"]} onChange={v=>set("Program Length",v)}/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-2 block">Time of Travel</label><MultiSelect options={TRAVELS} value={form["Time of Travel"]} onChange={v=>set("Time of Travel",v)}/></div>
-          <div className="col-span-2"><div className="border-t border-gray-100 pt-3 mt-1"><div className="text-xs font-semibold text-amber-600 mb-2">ð Alumni Info <span className="font-normal text-gray-400">(fill in if this person attended before)</span></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 mb-1 block">Previous Program</label><select value={form["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"><option value="">â</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 mb-1 block">Year Attended</label><input type="number" value={form["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"/></div></div></div></div>
-          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Contact History / Initial Notes</label><textarea value={form["Contact History"]} onChange={e=>set("Contact History",e.target.value)} placeholder="What was said in the initial contactâ¦" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
+          <div className="col-span-2"><div className="border-t border-gray-100 pt-3 mt-1"><div className="text-xs font-semibold text-amber-600 mb-2">🎓 Alumni Info <span className="font-normal text-gray-400">(fill in if this person attended before)</span></div><div className="grid grid-cols-2 gap-3"><div><label className="text-xs text-gray-500 mb-1 block">Previous Program</label><select value={form["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"><option value="">—</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 mb-1 block">Year Attended</label><input type="number" value={form["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-3 py-2 text-sm bg-amber-50"/></div></div></div></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Contact History / Initial Notes</label><textarea value={form["Contact History"]} onChange={e=>set("Contact History",e.target.value)} placeholder="What was said in the initial contact…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
           <button onClick={onCancel} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
@@ -173,7 +173,7 @@ function LeadForm({initial,onSave,onCancel,title}){
   );
 }
 
-// âââ CONTACT FORM âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CONTACT FORM ─────────────────────────────────────────────────────────────
 function ContactForm({initial,onSave,onCancel,title}){
   const blank={Name:"",Date:todayDate(),Email:"",Phone:"","Contact is a":"",Type:"",Program:"",Notes:""};
   const [form,setForm]=React.useState(initial||blank);
@@ -181,15 +181,15 @@ function ContactForm({initial,onSave,onCancel,title}){
   return(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
-        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Contact"}</h2><button onClick={onCancel} className="text-gray-400 text-xl">â</button></div>
+        <div className="flex justify-between items-center mb-5"><h2 className="text-lg font-semibold text-gray-800">{title||"Add Contact"}</h2><button onClick={onCancel} className="text-gray-400 text-xl">✕</button></div>
         <div className="grid grid-cols-2 gap-4">
           <div><label className="text-xs text-gray-500 mb-1 block">Name *</label><input value={form.Name} onChange={e=>set("Name",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Date</label><input value={form.Date} onChange={e=>set("Date",e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Email</label><input value={form.Email} onChange={e=>set("Email",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div><label className="text-xs text-gray-500 mb-1 block">Phone</label><input value={form.Phone} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
-          <div><label className="text-xs text-gray-500 mb-1 block">Type *</label><select value={form.Type} onChange={e=>set("Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Selectâ¦</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
-          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Program</label><input value={form.Program} onChange={e=>set("Program",e.target.value)} placeholder="e.g. Online â Thailand" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Contact is a</label><select value={form["Contact is a"]} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
+          <div><label className="text-xs text-gray-500 mb-1 block">Type *</label><select value={form.Type} onChange={e=>set("Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select…</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
+          <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Program</label><input value={form.Program} onChange={e=>set("Program",e.target.value)} placeholder="e.g. Online — Thailand" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"/></div>
           <div className="col-span-2"><label className="text-xs text-gray-500 mb-1 block">Notes</label><textarea value={form.Notes} onChange={e=>set("Notes",e.target.value)} className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm resize-none h-20"/></div>
         </div>
         <div className="flex justify-end gap-3 mt-6">
@@ -201,10 +201,10 @@ function ContactForm({initial,onSave,onCancel,title}){
   );
 }
 
-// âââ ADD REPLY âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-function AddReplyInline({onSave,onCancel}){const [content,setContent]=React.useState("");const [date,setDate]=React.useState(todayDate());return(<div className="bg-green-50 border border-green-100 rounded p-2 space-y-1.5 mt-1"><input value={date} onChange={e=>setDate(e.target.value)} placeholder="Reply date M/D/YY" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white"/><textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Their replyâ¦" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white resize-none h-12"/><div className="flex gap-2"><button onClick={()=>onSave(content,date)} className="text-xs px-3 py-1 bg-green-600 text-white rounded">Save</button><button onClick={onCancel} className="text-xs text-gray-500">Cancel</button></div></div>);}
+// ─── ADD REPLY ─────────────────────────────────────────────────────────────────
+function AddReplyInline({onSave,onCancel}){const [content,setContent]=React.useState("");const [date,setDate]=React.useState(todayDate());return(<div className="bg-green-50 border border-green-100 rounded p-2 space-y-1.5 mt-1"><input value={date} onChange={e=>setDate(e.target.value)} placeholder="Reply date M/D/YY" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white"/><textarea value={content} onChange={e=>setContent(e.target.value)} placeholder="Their reply…" className="w-full border border-gray-200 rounded px-2 py-1 text-xs bg-white resize-none h-12"/><div className="flex gap-2"><button onClick={()=>onSave(content,date)} className="text-xs px-3 py-1 bg-green-600 text-white rounded">Save</button><button onClick={onCancel} className="text-xs text-gray-500">Cancel</button></div></div>);}
 
-// âââ LEAD PROFILE âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── LEAD PROFILE ─────────────────────────────────────────────────────────────
 function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}){
   const [l,setL]=React.useState({...lead});
   const [logForm,setLogForm]=React.useState({date:todayDate(),who:"",how:"",notes:"",replied:"No",replyContent:"",replyDate:""});
@@ -263,7 +263,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
 
   const contactCount=(l.contactLog||[]).length;
   const needsReply=needsReplyFlag(l);
-  const getHowIcon=how=>({"Email":"â","Call":"â","Text":"ð¬"}[how]||how?.slice(0,2)||"â¢");
+  const getHowIcon=how=>({"Email":"✉","Call":"☎","Text":"💬"}[how]||how?.slice(0,2)||"•");
 
   return(
     <div className="fixed inset-0 bg-black bg-opacity-40 flex items-start justify-center z-50 p-4 overflow-y-auto">
@@ -274,13 +274,13 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             <div className="w-10 h-10 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">{getInitials(l["Name"])}</div>
             <div>
               <div className="text-lg font-semibold text-gray-900 flex items-center gap-2">{l["Name"]}<TempBadge temp={l.temperature}/></div>
-              <div className="text-sm text-gray-500">{l["Email"]}{l["Phone"]?` Â· ${l["Phone"]}`:""}</div>
+              <div className="text-sm text-gray-500">{l["Email"]}{l["Phone"]?` · ${l["Phone"]}`:""}</div>
             </div>
           </div>
           <div className="flex items-center gap-2">
             {needsReply&&<Tag label="Reply?" color="orange"/>}
             {isFuture(l)&&<Tag label={`Follow-up ${safeDate(l.followUp)}`} color="blue"/>}
-            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl ml-2">â</button>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl ml-2">✕</button>
           </div>
         </div>
 
@@ -294,8 +294,8 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
                 </select>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">Assigned to</label>
-                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`ð Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]||"â"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
-                  <option value="">â</option>{TEAM.map(t=><option key={t}>{t}</option>)}
+                <select value={l["Assigned to"]||""} onChange={async e=>{const prev=l["Assigned to"];set("Assigned to",e.target.value);if(e.target.value&&e.target.value!==prev)await sendNotification(e.target.value,`🔁 Lead reassigned to you: *${l["Name"]}*\nPrograms: ${l["Programs Interested In"]||"—"}`);}} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">
+                  <option value="">—</option>{TEAM.map(t=><option key={t}>{t}</option>)}
                 </select>
               </div>
             </div>
@@ -306,7 +306,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             {[["Source","Source",SOURCES,"select"],["School Name","School Name",null,"text"],["School Type","School Type",SCHOOL_TYPES,"select"],["Contact is a","Contact is a",CONTACT_IS,"select"]].map(([label,key,opts,type])=>(
               <div key={key}><label className="text-xs text-gray-400 block mb-1">{label}</label>
                 {type==="select"
-                  ?<select value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">â</option>{opts.map(o=><option key={o}>{o}</option>)}</select>
+                  ?<select value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">—</option>{opts.map(o=><option key={o}>{o}</option>)}</select>
                   :<input value={l[key]||""} onChange={e=>set(key,e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>}
               </div>
             ))}
@@ -314,9 +314,9 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             <div><label className="text-xs text-gray-400 block mb-2">Programs Interested In</label><MultiSelect options={PROGRAMS} value={l["Programs Interested In"]||""} onChange={v=>set("Programs Interested In",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Program Length</label><MultiSelect options={LENGTHS} value={l["Program Length"]||""} onChange={v=>set("Program Length",v)}/></div>
             <div><label className="text-xs text-gray-400 block mb-2">Time of Travel</label><MultiSelect options={TRAVELS} value={l["Time of Travel"]||""} onChange={v=>set("Time of Travel",v)}/></div>
-            <div className="border border-amber-200 rounded-lg p-3 bg-amber-50"><div className="text-xs font-semibold text-amber-600 mb-2">ð Alumni Info</div><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-500 block mb-1">Previous Program</label><select value={l["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"><option value="">â</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 block mb-1">Year Attended</label><input type="number" value={l["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div></div>
+            <div className="border border-amber-200 rounded-lg p-3 bg-amber-50"><div className="text-xs font-semibold text-amber-600 mb-2">🎓 Alumni Info</div><div className="grid grid-cols-2 gap-2"><div><label className="text-xs text-gray-500 block mb-1">Previous Program</label><select value={l["Alumni Program"]||""} onChange={e=>set("Alumni Program",e.target.value)} className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"><option value="">—</option>{PROGRAMS.map(p=><option key={p}>{p}</option>)}</select></div><div><label className="text-xs text-gray-500 block mb-1">Year Attended</label><input type="number" value={l["Alumni Year"]||""} onChange={e=>set("Alumni Year",e.target.value)} placeholder="e.g. 2023" className="w-full border border-amber-200 rounded-lg px-2 py-1.5 text-sm bg-white"/></div></div></div>
             <div>
-              <label className="text-xs text-gray-400 block mb-1">Next Follow-up <span className="text-gray-300 font-normal">(also your snooze â set far out to pause)</span></label>
+              <label className="text-xs text-gray-400 block mb-1">Next Follow-up <span className="text-gray-300 font-normal">(also your snooze — set far out to pause)</span></label>
               <input value={followUp} onChange={e=>setFollowUp(e.target.value)} placeholder="M/D/YY" className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/>
               <div className="text-xs text-gray-300 mt-1">E.g. set 8/1/26 to pause until August</div>
             </div>
@@ -329,7 +329,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
             </div>
           </div>
 
-          {/* RIGHT â contact log */}
+          {/* RIGHT — contact log */}
           <div>
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm font-medium text-gray-700">Contact Log</div>
@@ -379,7 +379,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
               <div className="text-xs font-medium text-gray-600">Log a contact</div>
               <div className="grid grid-cols-2 gap-2">
                 <div><label className="text-xs text-gray-400 block mb-1">Date</label><input value={logForm.date} onChange={e=>setLogForm(f=>({...f,date:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/></div>
-                <div><label className="text-xs text-gray-400 block mb-1">Who</label><select value={logForm.who} onChange={e=>setLogForm(f=>({...f,who:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"><option value="">Selectâ¦</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
+                <div><label className="text-xs text-gray-400 block mb-1">Who</label><select value={logForm.who} onChange={e=>setLogForm(f=>({...f,who:e.target.value}))} className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"><option value="">Select…</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select></div>
               </div>
               <div><label className="text-xs text-gray-400 block mb-1">How</label>
                 <div className="flex gap-1 flex-wrap">{HOW_OPTIONS.map(h=><button key={h} type="button" onClick={()=>setLogForm(f=>({...f,how:h}))} className={`text-xs px-2 py-1 rounded border ${logForm.how===h?"bg-indigo-100 border-indigo-400 text-indigo-700":"bg-white border-gray-200 text-gray-500"}`}>{h}</button>)}</div>
@@ -391,7 +391,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
               {logForm.replied==="Yes"&&(
                 <div className="space-y-1">
                   <input value={logForm.replyDate} onChange={e=>setLogForm(f=>({...f,replyDate:e.target.value}))} placeholder="Reply date M/D/YY" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs"/>
-                  <textarea value={logForm.replyContent} onChange={e=>setLogForm(f=>({...f,replyContent:e.target.value}))} placeholder="Their replyâ¦" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs resize-none h-12"/>
+                  <textarea value={logForm.replyContent} onChange={e=>setLogForm(f=>({...f,replyContent:e.target.value}))} placeholder="Their reply…" className="w-full border border-gray-200 bg-white rounded px-2 py-1.5 text-xs resize-none h-12"/>
                 </div>
               )}
               <div><label className="text-xs text-gray-400 block mb-1">Next follow-up <span className="text-gray-300">(auto: 3 business days from date above)</span></label>
@@ -407,7 +407,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
           <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
             <div className="text-base font-semibold text-gray-800">Archive this lead?</div>
             <div className="text-sm text-gray-400 text-center">All information will be preserved.</div>
-            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reasonâ¦</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reason…</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
             <div className="flex gap-3">
               <button onClick={()=>setShowArchiveModal(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
               <button onClick={async()=>{if(!archiveReason){alert("Select a reason.");return;}const archived={...l,archived:true,archiveReason,archiveDate:todayDate(),followUp};onArchive(archived);await saveLead({...archived,contactLog:JSON.stringify(archived.contactLog||[])});onClose();}} className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg">Archive</button>
@@ -420,7 +420,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
           <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
             <div className="text-base font-semibold text-gray-800">Move to Contacts</div>
             <div className="text-sm text-gray-400 text-center max-w-xs">All lead information will be preserved. Select the contact type.</div>
-            <select value={contactType} onChange={e=>setContactType(e.target.value)} className="w-56 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select typeâ¦</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select>
+            <select value={contactType} onChange={e=>setContactType(e.target.value)} className="w-56 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select type…</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select>
             <div className="flex gap-3">
               <button onClick={()=>setShowMoveContacts(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
               <button onClick={()=>{if(!contactType){alert("Select a type.");return;}onMoveToContacts(l,contactType);onClose();}} className="px-5 py-2 text-sm bg-indigo-600 text-white rounded-lg">Move</button>
@@ -432,7 +432,7 @@ function LeadProfile({lead,onClose,onUpdate,onArchive,onMoveToContacts,onDelete}
   );
 }
 
-// âââ CONTACT PROFILE ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CONTACT PROFILE ──────────────────────────────────────────────────────────
 function ContactProfile({contact,onClose,onUpdate,onMoveToLeads,onArchiveContact}){
   const [c,setC]=React.useState({...contact});
   const [showArchiveModal,setShowArchiveModal]=React.useState(false);
@@ -448,13 +448,13 @@ function ContactProfile({contact,onClose,onUpdate,onMoveToLeads,onArchiveContact
             <div className="w-9 h-9 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-sm">{getInitials(c.Name)}</div>
             <div><div className="font-semibold text-gray-800">{c.Name}</div><div className="text-xs text-gray-400">{c.Email}</div></div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">â</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl">✕</button>
         </div>
-        <div className="flex gap-2 mb-4"><Tag label={c.Type||"â"} color={typeColor(c.Type)}/><span className="text-xs text-gray-400 flex items-center">Added {displayDate}</span></div>
+        <div className="flex gap-2 mb-4"><Tag label={c.Type||"—"} color={typeColor(c.Type)}/><span className="text-xs text-gray-400 flex items-center">Added {displayDate}</span></div>
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <div><label className="text-xs text-gray-400 block mb-1">Phone</label><input value={c.Phone||""} onChange={e=>set("Phone",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/></div>
-            <div><label className="text-xs text-gray-400 block mb-1">Contact is a</label><select value={c["Contact is a"]||""} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">â</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
+            <div><label className="text-xs text-gray-400 block mb-1">Contact is a</label><select value={c["Contact is a"]||""} onChange={e=>set("Contact is a",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"><option value="">—</option>{CONTACT_IS_CONTACTS.map(s=><option key={s}>{s}</option>)}</select></div>
             <div><label className="text-xs text-gray-400 block mb-1">Type</label><select value={c.Type||""} onChange={e=>set("Type",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm">{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
             <div><label className="text-xs text-gray-400 block mb-1">Program</label><input value={c.Program||""} onChange={e=>set("Program",e.target.value)} className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm"/></div>
           </div>
@@ -469,7 +469,7 @@ function ContactProfile({contact,onClose,onUpdate,onMoveToLeads,onArchiveContact
           <div className="absolute inset-0 bg-white bg-opacity-95 rounded-xl flex flex-col items-center justify-center p-8 gap-4 z-10">
             <div className="text-base font-semibold text-gray-800">Archive this contact?</div>
             <div className="text-sm text-gray-400">All information will be preserved.</div>
-            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reasonâ¦</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
+            <select value={archiveReason} onChange={e=>setArchiveReason(e.target.value)} className="w-48 border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="">Select reason…</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
             <div className="flex gap-3">
               <button onClick={()=>setShowArchiveModal(false)} className="px-4 py-2 text-sm text-gray-500">Cancel</button>
               <button onClick={()=>{if(!archiveReason){alert("Select a reason.");return;}onArchiveContact(c,archiveReason);onClose();}} className="px-5 py-2 text-sm bg-red-500 text-white rounded-lg">Archive</button>
@@ -481,7 +481,7 @@ function ContactProfile({contact,onClose,onUpdate,onMoveToLeads,onArchiveContact
   );
 }
 
-// âââ ARCHIVED ITEM PROFILE ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── ARCHIVED ITEM PROFILE ────────────────────────────────────────────────────
 function ArchivedItemProfile({item,onClose,onRestore}){
   const isContact=item._table==="contacts";
   return(
@@ -492,7 +492,7 @@ function ArchivedItemProfile({item,onClose,onRestore}){
             <div className="w-9 h-9 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 font-bold text-sm">{getInitials(item.Name||item["Name"])}</div>
             <div><div className="font-semibold text-gray-800">{item.Name||item["Name"]}</div><div className="text-xs text-gray-400">{item.Email||item["Email"]}</div></div>
           </div>
-          <button onClick={onClose} className="text-gray-400 text-xl">â</button>
+          <button onClick={onClose} className="text-gray-400 text-xl">✕</button>
         </div>
         <div className="flex gap-2 mb-4 flex-wrap">
           <Tag label={item.archiveReason||"Archived"} color={item.archiveReason==="Converted"?"green":(item.archiveReason==="Not interested"?"red":"gray")}/>
@@ -513,7 +513,7 @@ function ArchivedItemProfile({item,onClose,onRestore}){
   );
 }
 
-// âââ ACTIONS TAB ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── ACTIONS TAB ──────────────────────────────────────────────────────────────
 function ActionsTab({leads,onSelectLead,onAddLead}){
   const [person,setPerson]=React.useState("Everyone");
   const filtered=person==="Everyone"?leads:leads.filter(l=>l["Assigned to"]===person);
@@ -532,7 +532,7 @@ function ActionsTab({leads,onSelectLead,onAddLead}){
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="text-sm font-medium text-gray-800">{lead["Name"]}</span>
             {lead.temperature&&<TempBadge temp={lead.temperature}/>}
-            {lead["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">ð Alumni</span>}
+            {lead["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">🎓 Alumni</span>}
             {nr&&<Tag label="Reply?" color="orange"/>}
           </div>
           <div className="text-right flex-shrink-0 ml-2">
@@ -560,12 +560,12 @@ function ActionsTab({leads,onSelectLead,onAddLead}){
       {overdue.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">Overdue</div><div className="space-y-2">{overdue.map(l=><Card key={l.id} lead={l} urgency="overdue"/>)}</div></div>}
       {dueToday.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-yellow-600 uppercase tracking-wider mb-2">Due Today</div><div className="space-y-2">{dueToday.map(l=><Card key={l.id} lead={l} urgency="today"/>)}</div></div>}
       {thisWeek.length>0&&<div className="mb-4"><div className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2">This Week</div><div className="space-y-2">{thisWeek.map(l=><Card key={l.id} lead={l} urgency="week"/>)}</div></div>}
-      {overdue.length===0&&dueToday.length===0&&thisWeek.length===0&&<div className="text-center text-gray-400 text-sm py-12">Nothing due right now{person!=="Everyone"?` for ${person}`:""}. ð</div>}
+      {overdue.length===0&&dueToday.length===0&&thisWeek.length===0&&<div className="text-center text-gray-400 text-sm py-12">Nothing due right now{person!=="Everyone"?` for ${person}`:""}. 🎉</div>}
     </div>
   );
 }
 
-// âââ CURRENT LEADS TAB ââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CURRENT LEADS TAB ────────────────────────────────────────────────────────
 function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
   const [search,setSearch]=React.useState("");
   const [stageF,setStageF]=React.useState("All");
@@ -582,15 +582,15 @@ function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
   return(
     <div>
       <div className="flex flex-wrap gap-2 mb-3">
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or emailâ¦" className="flex-1 min-w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 min-w-36 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
         <select value={stageF} onChange={e=>setStageF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{STAGES.map(s=><option key={s}>{s}</option>)}</select>
         <select value={personF} onChange={e=>setPersonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>Everyone</option>{TEAM.map(t=><option key={t}>{t}</option>)}</select>
         <select value={tempF} onChange={e=>setTempF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option value="All">All Temps</option><option value="Hot">Hot</option><option value="Cold">Cold</option><option value="Semester">Semester</option><option value="None">None</option></select>
       </div>
       <div className="flex gap-2 mb-4">
-        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">â¬ Export</button>
+        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">⬇ Export</button>
         <button onClick={onAddLead} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">+ Add Lead</button>
-        <button onClick={onUpload} disabled={uploading} className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-500 disabled:opacity-50">{uploading?"Uploadingâ¦":"Upload from sheet"}</button>
+        <button onClick={onUpload} disabled={uploading} className="px-3 py-2 text-sm border border-gray-200 rounded-lg text-gray-500 disabled:opacity-50">{uploading?"Uploading…":"Upload from sheet"}</button>
       </div>
       {showExport&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4"><div className="text-sm font-medium text-gray-700 mb-1">Export Current Leads</div><div className="text-xs text-gray-400 mb-3">All fields + source summary</div><button onClick={()=>exportCSV(filtered,"current-leads.csv")} className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 font-medium">Download CSV</button></div>}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -605,11 +605,11 @@ function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
         {filtered.map((l,i)=>(
           <div key={l.id} onClick={()=>onSelectLead(l)} className={`grid grid-cols-[1fr_100px_80px_70px_90px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div>
-              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}{l["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">ð Alumni</span>}{isFuture(l)&&<span className="text-xs text-blue-400" title={`Follow-up: ${l.followUp}`}>â¸</span>}</div>
+              <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}{l["Alumni Program"]&&<span className="text-xs bg-amber-100 text-amber-700 px-1.5 py-0.5 rounded-full font-medium">🎓 Alumni</span>}{isFuture(l)&&<span className="text-xs text-blue-400" title={`Follow-up: ${l.followUp}`}>⏸</span>}</div>
               <div className="text-xs text-gray-400">{l["Email"]}</div>
             </div>
             <div className="flex items-center"><Tag label={l["Stage"]||"New"} color={stageColor(l["Stage"])}/></div>
-            <div className="text-sm text-gray-500 flex items-center">{l["Assigned to"]||"â"}</div>
+            <div className="text-sm text-gray-500 flex items-center">{l["Assigned to"]||"—"}</div>
             <div className="text-xs text-gray-400 flex items-center">{safeDate(l["Date Added"])}</div>
             <div className="flex items-center"><ContactDots count={(l.contactLog||[]).length}/></div>
           </div>
@@ -620,7 +620,7 @@ function CurrentLeadsTab({leads,onSelectLead,onAddLead,onUpload,uploading}){
   );
 }
 
-// âââ CONTACTS TAB âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── CONTACTS TAB ─────────────────────────────────────────────────────────────
 function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading}){
   const [search,setSearch]=React.useState("");
   const [typeF,setTypeF]=React.useState("All");
@@ -631,13 +631,13 @@ function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading})
       <div className="flex flex-wrap gap-2 mb-4 items-center">
         <div className="text-base font-semibold text-gray-800 mr-2">Contacts</div>
         <div className="flex-1"/>
-        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">â¬ Export</button>
-        <button onClick={onUpload} disabled={uploading} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 disabled:opacity-50">{uploading?"Uploadingâ¦":"Upload from sheet"}</button>
+        <button onClick={()=>setShowExport(v=>!v)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500">⬇ Export</button>
+        <button onClick={onUpload} disabled={uploading} className="border border-gray-200 rounded-lg px-3 py-2 text-sm text-gray-500 disabled:opacity-50">{uploading?"Uploading…":"Upload from sheet"}</button>
         <button onClick={onAddContact} className="px-3 py-2 text-sm bg-indigo-600 text-white rounded-lg font-medium hover:bg-indigo-700">+ Add Contact</button>
       </div>
       {showExport&&<div className="bg-gray-50 border border-gray-200 rounded-xl p-4 mb-4"><div className="text-sm font-medium text-gray-700 mb-1">Export Contacts</div><div className="text-xs text-gray-400 mb-3">Name, Email, Phone, Type, Program, Contact is a, Notes, Date</div><button onClick={()=>exportContactsCSV(filtered)} className="px-4 py-2 text-sm bg-white border border-gray-300 rounded-lg text-gray-700 font-medium">Download CSV</button></div>}
       <div className="flex gap-2 mb-4">
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or emailâ¦" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
         <select value={typeF} onChange={e=>setTypeF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{CONTACT_TYPES.map(t=><option key={t}>{t}</option>)}</select>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -650,7 +650,7 @@ function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading})
         {filtered.map((c,i)=>(
           <div key={c.id} onClick={()=>onSelectContact(c)} className={`grid grid-cols-[1fr_140px_80px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div><div className="text-sm font-medium text-gray-800">{c.Name}</div><div className="text-xs text-gray-400">{c.Email}</div></div>
-            <div className="flex items-center"><Tag label={c.Type||"â"} color={typeColor(c.Type)}/></div>
+            <div className="flex items-center"><Tag label={c.Type||"—"} color={typeColor(c.Type)}/></div>
             <div className="text-xs text-gray-400 flex items-center">{safeDate(c.Date||c["Date Added"])}</div>
           </div>
         ))}
@@ -660,7 +660,7 @@ function ContactsTab({contacts,onSelectContact,onAddContact,onUpload,uploading})
   );
 }
 
-// âââ ALUMNI TAB âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── ALUMNI TAB ───────────────────────────────────────────────────────────────
 function AlumniTab({leads,onSelectLead,onSelectArchived}){
   const [search,setSearch]=React.useState("");
   const alumni=leads.filter(l=>l["Alumni Program"]);
@@ -668,8 +668,8 @@ function AlumniTab({leads,onSelectLead,onSelectArchived}){
   return(
     <div>
       <div className="mb-1 text-base font-semibold text-gray-800">Alumni</div>
-      <div className="text-xs text-gray-400 mb-4">People who have traveled with Loop Abroad before. They get a special discount â check their previous program before making recommendations.</div>
-      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or emailâ¦" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"/>
+      <div className="text-xs text-gray-400 mb-4">People who have traveled with Loop Abroad before. They get a special discount — check their previous program before making recommendations.</div>
+      <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm mb-4"/>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         <div className="grid grid-cols-[1fr_120px_80px_100px] gap-3 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
           <div className="text-xs text-amber-700 uppercase tracking-wider font-medium">Name</div>
@@ -682,10 +682,10 @@ function AlumniTab({leads,onSelectLead,onSelectArchived}){
           <div key={l.id} onClick={()=>l.archived?onSelectArchived(l):onSelectLead(l)} className={`grid grid-cols-[1fr_120px_80px_100px] gap-3 px-4 py-3 cursor-pointer hover:bg-amber-50 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div>
               <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{l["Name"]}{l.temperature&&<TempBadge temp={l.temperature}/>}</div>
-              <div className="text-xs text-gray-400">{l["Programs Interested In"]||"â"}</div>
+              <div className="text-xs text-gray-400">{l["Programs Interested In"]||"—"}</div>
             </div>
-            <div className="text-sm text-gray-600 flex items-center">{l["Alumni Program"]||"â"}</div>
-            <div className="text-sm text-gray-500 flex items-center">{l["Alumni Year"]||"â"}</div>
+            <div className="text-sm text-gray-600 flex items-center">{l["Alumni Program"]||"—"}</div>
+            <div className="text-sm text-gray-500 flex items-center">{l["Alumni Year"]||"—"}</div>
             <div className="flex items-center">{l.archived?<Tag label="Archived" color="gray"/>:<Tag label={l["Stage"]||"New"} color={stageColor(l["Stage"])}/>}</div>
           </div>
         ))}
@@ -695,7 +695,7 @@ function AlumniTab({leads,onSelectLead,onSelectArchived}){
   );
 }
 
-// âââ ARCHIVE TAB ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── ARCHIVE TAB ──────────────────────────────────────────────────────────────
 function ArchiveTab({leads,contacts,onSelectArchived}){
   const [search,setSearch]=React.useState("");
   const [reasonF,setReasonF]=React.useState("All");
@@ -706,7 +706,7 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
       <div className="mb-1 text-base font-semibold text-gray-800">Archive</div>
       <div className="text-xs text-gray-400 mb-4">Converted, hard no's, and leads that went silent. Click any row to view or restore.</div>
       <div className="flex gap-2 mb-4">
-        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or emailâ¦" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
+        <input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search name or email…" className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-sm"/>
         <select value={reasonF} onChange={e=>setReasonF(e.target.value)} className="border border-gray-200 rounded-lg px-3 py-2 text-sm"><option>All</option>{ARCHIVE_REASONS.map(r=><option key={r}>{r}</option>)}</select>
       </div>
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
@@ -720,9 +720,9 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
           <div key={item.id} onClick={()=>onSelectArchived(item)} className={`grid grid-cols-[1fr_120px_80px] gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50 opacity-80 hover:opacity-100 ${i<filtered.length-1?"border-b border-gray-100":""}`}>
             <div>
               <div className="text-sm font-medium text-gray-800 flex items-center gap-1.5">{item.Name||item["Name"]}{item.temperature&&<TempBadge temp={item.temperature}/>}</div>
-              <div className="text-xs text-gray-400">{item.Email||item["Email"]}{item._table==="contacts"?" Â· Contact":""}</div>
+              <div className="text-xs text-gray-400">{item.Email||item["Email"]}{item._table==="contacts"?" · Contact":""}</div>
             </div>
-            <div className="flex items-center"><Tag label={item.archiveReason||"â"} color={item.archiveReason==="Converted"?"green":item.archiveReason==="Not interested"?"red":"gray"}/></div>
+            <div className="flex items-center"><Tag label={item.archiveReason||"—"} color={item.archiveReason==="Converted"?"green":item.archiveReason==="Not interested"?"red":"gray"}/></div>
             <div className="text-xs text-gray-400 flex items-center">{safeDate(item.archiveDate)}</div>
           </div>
         ))}
@@ -732,7 +732,7 @@ function ArchiveTab({leads,contacts,onSelectArchived}){
   );
 }
 
-// âââ DUPLICATE MODAL ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── DUPLICATE MODAL ──────────────────────────────────────────────────────────
 function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
   const {existing,incoming}=conflict;
   const SHOW_FIELDS=["Assigned to","Programs Interested In","Area of Interest","Time of Travel","School Name","Phone","Source"];
@@ -743,7 +743,7 @@ function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
       <div className="bg-white rounded-xl shadow-2xl w-full max-w-lg p-6">
         <div className="flex items-center justify-between mb-4">
           <div>
-            <div className="text-xs text-gray-400 mb-0.5">Duplicate email found â {index} of {total}</div>
+            <div className="text-xs text-gray-400 mb-0.5">Duplicate email found — {index} of {total}</div>
             <div className="text-base font-bold text-gray-900">{existing["Name"]||existing.Name}</div>
             <div className="text-xs text-gray-400">{existing["Email"]||existing.Email}</div>
           </div>
@@ -751,19 +751,19 @@ function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
         </div>
         {changed.length>0&&(
           <div className="mb-4">
-            <div className="text-xs font-semibold text-indigo-600 mb-2">â¡ Changed fields (new value â current)</div>
+            <div className="text-xs font-semibold text-indigo-600 mb-2">⚡ Changed fields (new value → current)</div>
             <div className="space-y-1.5">
               {changed.map(f=>(
                 <div key={f} className="grid grid-cols-[100px_1fr_1fr] gap-2 text-xs items-start">
                   <span className="text-gray-400">{f}</span>
-                  <span className="text-indigo-700 font-medium bg-indigo-50 rounded px-1.5 py-0.5">{incoming[f]||"â"}</span>
-                  <span className="text-gray-400 bg-gray-50 rounded px-1.5 py-0.5">{existing[f]||"â"}</span>
+                  <span className="text-indigo-700 font-medium bg-indigo-50 rounded px-1.5 py-0.5">{incoming[f]||"—"}</span>
+                  <span className="text-gray-400 bg-gray-50 rounded px-1.5 py-0.5">{existing[f]||"—"}</span>
                 </div>
               ))}
             </div>
           </div>
         )}
-        {changed.length===0&&<div className="text-xs text-gray-400 mb-4 bg-gray-50 rounded-lg p-3">No field changes detected â the sheet data matches what's already in the tracker.</div>}
+        {changed.length===0&&<div className="text-xs text-gray-400 mb-4 bg-gray-50 rounded-lg p-3">No field changes detected — the sheet data matches what's already in the tracker.</div>}
         {same.length>0&&(
           <div className="mb-5">
             <div className="text-xs font-semibold text-gray-400 mb-2">Unchanged</div>
@@ -780,10 +780,10 @@ function DuplicateModal({conflict,index,total,onUpdate,onSkip}){
   );
 }
 
-// âââ LOGIN âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── LOGIN ─────────────────────────────────────────────────────────────────────
 function Login({onLogin}){const [pw,setPw]=React.useState("");const [err,setErr]=React.useState("");const attempt=()=>{if(pw===PASSWORDS.admin){onLogin("admin");return;}if(pw===PASSWORDS.team){onLogin("team");return;}setErr("Incorrect password.");};return(<div className="min-h-screen flex items-center justify-center bg-gray-50"><div className="bg-white rounded-2xl shadow-lg p-8 w-80"><div className="text-lg font-bold text-gray-800 mb-1">Loop Abroad</div><div className="text-sm text-gray-400 mb-6">Leads Tracker</div><input type="password" value={pw} onChange={e=>setPw(e.target.value)} onKeyDown={e=>e.key==="Enter"&&attempt()} placeholder="Enter password" className="w-full border border-gray-200 rounded-xl px-4 py-3 text-sm mb-3"/>{err&&<div className="text-xs text-red-500 mb-2">{err}</div>}<button onClick={attempt} className="w-full py-3 bg-indigo-600 text-white rounded-xl text-sm font-medium hover:bg-indigo-700">Sign in</button></div></div>);}
 
-// âââ APP ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─── APP ──────────────────────────────────────────────────────────────────────
 function App(){
   const [role,setRole]=React.useState(null);
   const [tab,setTab]=React.useState("actions");
@@ -842,7 +842,7 @@ function App(){
     const lead={...form,id,Stage:"New","Date Added":dateAdded,followUp,contactLog:firstLog,archived:false};
     setLeads(prev=>[lead,...prev]);setShowLeadForm(false);showToast("Lead added.");
     await saveLead({...lead,contactLog:JSON.stringify(firstLog)});
-    if(form["Assigned to"])await sendNotification(form["Assigned to"],`ð New lead assigned to you: *${form["Name"]}*\nPrograms: ${form["Programs Interested In"]||"â"}\nSource: ${form["Source"]||"â"}`);
+    if(form["Assigned to"])await sendNotification(form["Assigned to"],`📋 New lead assigned to you: *${form["Name"]}*\nPrograms: ${form["Programs Interested In"]||"—"}\nSource: ${form["Source"]||"—"}`);
   };
 
   const uploadNewLeads=async()=>{
@@ -852,7 +852,7 @@ function App(){
       const allKnown=Array.isArray(freshData)?freshData:leads;
       const data=await callScript("GET",{action:"read_tab",gid:NEW_LEADS_GID});
       if(!data.rows){alert("Could not read New Leads tab.");setUploading(false);return;}
-      // Build emailâexisting map for duplicate detection
+      // Build email→existing map for duplicate detection
       const emailMap={};
       allKnown.forEach(l=>{const e=(l["Email"]||"").toLowerCase().trim();if(e)emailMap[e]=l;});
       const existingNames=new Set(allKnown.map(l=>(l["Name"]||"").toLowerCase().trim()).filter(Boolean));
@@ -909,7 +909,7 @@ function App(){
         setLeads(prev=>[...toSave,...prev]);
         await callScript("POST",{action:"bulk_upsert",leads:toSave.map(l=>({...l,contactLog:JSON.stringify(l.contactLog)}))});
         const byPerson={};toSave.forEach(l=>{if(l["Assigned to"]){(byPerson[l["Assigned to"]]||(byPerson[l["Assigned to"]]=[]) ).push(l);}});
-        for(const[p,pL]of Object.entries(byPerson))await sendNotification(p,`ð ${pL.length} new lead${pL.length>1?"s":""} assigned to you:\n${pL.map(l=>`â¢ ${l["Name"]}`).join("\n")}`);
+        for(const[p,pL]of Object.entries(byPerson))await sendNotification(p,`📋 ${pL.length} new lead${pL.length>1?"s":""} assigned to you:\n${pL.map(l=>`• ${l["Name"]}`).join("\n")}`);
       }
       // Apply updates from duplicates
       if(updates.length>0){
@@ -948,7 +948,7 @@ function App(){
   const addContact=async form=>{const contact={...form,id:generateId(),_table:"contacts",Date:safeDate(form.Date)||todayDate()};setContacts(prev=>[contact,...prev]);setShowContactForm(false);showToast("Contact added.");await saveLead(contact);};
 
   const moveLeadToContacts=async(lead,contactType)=>{
-    const note=`Moved from active leads on ${todayDate()}. Was at stage: ${lead.Stage||"â"}. Assigned to: ${lead["Assigned to"]||"â"}. Source: ${lead["Source"]||"â"}. Programs: ${lead["Programs Interested In"]||"â"}.`;
+    const note=`Moved from active leads on ${todayDate()}. Was at stage: ${lead.Stage||"—"}. Assigned to: ${lead["Assigned to"]||"—"}. Source: ${lead["Source"]||"—"}. Programs: ${lead["Programs Interested In"]||"—"}.`;
     const contact={...lead,_table:"contacts",Type:contactType,Date:safeDate(lead["Date Added"])||todayDate(),Notes:(lead.Notes?lead.Notes+"\n\n":"")+note};
     const archived={...lead,archived:true,archiveReason:"Moved to Contacts",archiveDate:todayDate()};
     setLeads(prev=>prev.map(l=>l.id===lead.id?archived:l));
@@ -972,7 +972,7 @@ function App(){
   };
 
   const restoreFromArchive=async(item,destination)=>{
-    const restoreNote=`Restored from archive on ${todayDate()}. Was archived as: ${item.archiveReason||"â"} on ${safeDate(item.archiveDate)}.`;
+    const restoreNote=`Restored from archive on ${todayDate()}. Was archived as: ${item.archiveReason||"—"} on ${safeDate(item.archiveDate)}.`;
     if(destination==="leads"){
       const logNote={id:Date.now(),date:todayDate(),who:"",how:"Other",notes:restoreNote,replied:"No",replyContent:"",replyDate:""};
       const restored={...item,_table:undefined,archived:false,archiveReason:undefined,archiveDate:undefined,Stage:item.Stage||"Contacted",followUp:defaultFollowUp(todayDate()),contactLog:[...(parseLog(item.contactLog)),logNote],Notes:(item.Notes?item.Notes+"\n\n":"")+restoreNote};
@@ -1006,8 +1006,8 @@ function App(){
         </div>
       </div>
       <div className="max-w-4xl mx-auto px-4 py-6">
-        {loading&&<div className="text-center text-gray-400 text-sm py-12"><div className="mb-2">Loading your leadsâ¦ (this can take up to 30 seconds on first load)</div><div className="text-xs text-gray-300">Please wait â don't refresh</div></div>}
-        {!loading&&loadError&&<div className="text-center py-12"><div className="text-red-400 text-sm mb-3">â ï¸ Couldn't connect to the database. This usually means Google's server is warming up.</div><button onClick={loadData} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Try Again</button></div>}
+        {loading&&<div className="text-center text-gray-400 text-sm py-12"><div className="mb-2">Loading your leads… (this can take up to 30 seconds on first load)</div><div className="text-xs text-gray-300">Please wait — don't refresh</div></div>}
+        {!loading&&loadError&&<div className="text-center py-12"><div className="text-red-400 text-sm mb-3">⚠️ Couldn't connect to the database. This usually means Google's server is warming up.</div><button onClick={loadData} className="px-4 py-2 bg-indigo-600 text-white text-sm rounded-lg hover:bg-indigo-700">Try Again</button></div>}
         {!loading&&!loadError&&<>
           {tab==="actions"  &&<ActionsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)}/>}
           {tab==="leads"    &&<CurrentLeadsTab leads={activeLeads} onSelectLead={setSelectedLead} onAddLead={()=>setShowLeadForm(true)} onUpload={uploadNewLeads} uploading={uploading}/>}
