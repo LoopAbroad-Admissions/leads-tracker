@@ -30,8 +30,8 @@ const SCHOOL_TYPES  = ["High School","College","Vet Tech","Vet School"];
 const CONTACT_IS    = ["Parent","Student"];
 const CONTACT_IS_CONTACTS = ["Parent","Student","Current Vet","Other"];
 const SOURCES       = ["Phone Call","Club Meeting","Email","Go Abroad","Instagram","Message Us","Other","Scheduled Meeting","Social Media","Text","WorldStrides"];
-const AREAS         = ["Big Cats","CELA","Conservation","Equine","Large Animal","Marine","Medical","Research","Shelter Med","Wildlife","Zoo","Vet Tech"];
-const PROGRAMS      = ["Australia","Bali","Belize","CAVSA","Costa Rica","Egypt","Greece","GVSA","Internship","Online","Panama","South Africa","Thailand","TVSA","Tulum","USA","UK Liverpool"];
+const AREAS         = ["Big Cats","CELA","Conservation","Equine","Large Animal","Marine","Research","Shelter Med","Wildlife","Zoo","Vet Tech"];
+const PROGRAMS      = ["Australia","Bali","Belize","CAVSA","Costa Rica","Egypt","GVSA","Internship","Online","Panama","South Africa","Thailand","TVSA","Tulum","USA","UK Liverpool"];
 const LENGTHS       = ["2 Weeks","4 Weeks","6 Weeks","12 Weeks"];
 const TRAVELS       = ["Summer","Winter","Fall","Spring"];
 const CONTACT_TYPES = ["Online","Special Program","Future Enrollment","TVSA Future","Group Organizer","Other"]; // Other added
@@ -961,7 +961,7 @@ function App(){
   const moveContactToLeads=async contact=>{
     const restoreNote={id:Date.now(),date:todayDate(),who:"",how:"Other",notes:`Moved from Contacts to Active Leads on ${todayDate()}.`,replied:"No",replyContent:"",replyDate:""};
     const prevStage=contact.Stage||"New";
-    const lead={...contact,_table:undefined,archived:false,Stage:prevStage,"Date Added":safeDate(contact["Date Added"]||contact.Date)||todayDate(),followUp:defaultFollowUp(todayDate()),contactLog:[...(parseLog(contact.contactLog)),restoreNote]};
+    const lead={...contact,_table:undefined,archived:false,Stage:prevStage,"Date Added":safeDate(contact["Date Added"]||contact.Date)||todayDate(),followUp:defaultFollowUp(todayDate()),contactLog:[...(parseLog(contact.contactLog)),restoreNote],"Programs Interested In":contact["Programs Interested In"]||contact.Program||""};
     setLeads(prev=>[lead,...prev]);
     const archivedContact={...contact,archived:true,archiveReason:"Moved to Leads",archiveDate:todayDate()};
     setContacts(prev=>prev.map(c=>c.id===contact.id?archivedContact:c));
